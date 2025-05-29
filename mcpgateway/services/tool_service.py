@@ -608,7 +608,19 @@ class ToolService:
             ToolNameConflictError: If tool name conflict occurs
         """
         try:
-            tool = await db.get(DbTool, tool_id)
+            stmt = (
+                select(DbTool)
+                .where(DbTool.id == tool_id)
+                .options(
+                    selectinload(DbTool.gateway),
+                    selectinload(DbTool.servers),
+                    selectinload(DbTool.federated_with),
+                    selectinload(DbTool.metrics),
+                )
+            )
+            result = await db.execute(stmt)
+            tool = result.scalar_one_or_none()
+            
             if not tool:
                 raise ToolNotFoundError(f"Tool not found: {tool_id}")
             if tool_update.name is not None and tool_update.name != tool.name:

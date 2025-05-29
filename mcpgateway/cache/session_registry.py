@@ -38,7 +38,7 @@ except ImportError:
     REDIS_AVAILABLE = False
 
 try:
-    from sqlalchemy import func
+    from sqlalchemy import func, select
 
     SQLALCHEMY_AVAILABLE = True
 except ImportError:
@@ -209,19 +209,20 @@ class SessionRegistry(SessionBackend):
             # Store session in database
             try:
 
-                def _db_add():
-                    db_session = next(get_db())
+                async def _db_add():
+                    db_gen = get_db()
+                    db_session = await anext(db_gen)
                     try:
                         session_record = SessionRecord(session_id=session_id)
                         db_session.add(session_record)
-                        db_session.commit()
+                        await db_session.commit()
                     except Exception as ex:
-                        db_session.rollback()
+                        await db_session.rollback()
                         raise ex
                     finally:
-                        db_session.close()
+                        await db_gen.aclose()
 
-                await asyncio.to_thread(_db_add)
+                await _db_add()
             except Exception as e:
                 logger.error(f"Database error adding session {session_id}: {e}")
 
@@ -262,15 +263,18 @@ class SessionRegistry(SessionBackend):
         elif self._backend == "database":
             try:
 
-                def _db_check():
-                    db_session = next(get_db())
+                async def _db_check():
+                    db_gen = get_db()
+                    db_session = await anext(db_gen)
                     try:
-                        record = db_session.query(SessionRecord).filter(SessionRecord.session_id == session_id).first()
+                        stmt = select(SessionRecord).where(SessionRecord.session_id == session_id)
+                        result = await db_session.execute(stmt)
+                        record = result.scalar_one_or_none()
                         return record is not None
                     finally:
-                        db_session.close()
+                        await db_gen.aclose()
 
-                exists = await asyncio.to_thread(_db_check)
+                exists = await _db_check()
                 if exists:
                     logger.info(f"Session {session_id} exists in database but not in local cache")
                 return None
@@ -315,18 +319,23 @@ class SessionRegistry(SessionBackend):
         elif self._backend == "database":
             try:
 
-                def _db_remove():
-                    db_session = next(get_db())
+                async def _db_remove():
+                    db_gen = get_db()
+                    db_session = await anext(db_gen)
                     try:
-                        db_session.query(SessionRecord).filter(SessionRecord.session_id == session_id).delete()
-                        db_session.commit()
+                        stmt = select(SessionRecord).where(SessionRecord.session_id == session_id)
+                        result = await db_session.execute(stmt)
+                        record = result.scalar_one_or_none()
+                        if record:
+                            await db_session.delete(record)
+                            await db_session.commit()
                     except Exception as ex:
-                        db_session.rollback()
+                        await db_session.rollback()
                         raise ex
                     finally:
-                        db_session.close()
+                        await db_gen.aclose()
 
-                await asyncio.to_thread(_db_remove)
+                await _db_remove()
             except Exception as e:
                 logger.error(f"Database error removing session {session_id}: {e}")
 
@@ -368,19 +377,20 @@ class SessionRegistry(SessionBackend):
                 else:
                     msg_json = json.dumps(str(message))
 
-                def _db_add():
-                    db_session = next(get_db())
+                async def _db_add():
+                    db_gen = get_db()
+                    db_session = await anext(db_gen)
                     try:
                         message_record = SessionMessageRecord(session_id=session_id, message=msg_json)
                         db_session.add(message_record)
-                        db_session.commit()
+                        await db_session.commit()
                     except Exception as ex:
-                        db_session.rollback()
+                        await db_session.rollback()
                         raise ex
                     finally:
-                        db_session.close()
+                        await db_gen.aclose()
 
-                await asyncio.to_thread(_db_add)
+                await _db_add()
             except Exception as e:
                 logger.error(f"Database error during broadcast: {e}")
 
@@ -449,45 +459,52 @@ class SessionRegistry(SessionBackend):
 
         elif self._backend == "database":
 
-            def _db_read_session(session_id):
-                db_session = next(get_db())
+            async def _db_read_session(session_id):
+                db_gen = get_db()
+                db_session = await anext(db_gen)
                 try:
-                    # Delete sessions that haven't been accessed for TTL seconds
-                    result = db_session.query(SessionRecord).filter_by(session_id=session_id).first()
-                    return result
+                    stmt = select(SessionRecord).where(SessionRecord.session_id == session_id)
+                    result = await db_session.execute(stmt)
+                    record = result.scalar_one_or_none()
+                    return record
                 except Exception as ex:
-                    db_session.rollback()
                     raise ex
                 finally:
-                    db_session.close()
+                    await db_gen.aclose()
 
-            def _db_read(session_id):
-                db_session = next(get_db())
+            async def _db_read(session_id):
+                db_gen = get_db()
+                db_session = await anext(db_gen)
                 try:
-                    # Delete sessions that haven't been accessed for TTL seconds
-                    result = db_session.query(SessionMessageRecord).filter_by(session_id=session_id).first()
-                    return result
+                    stmt = select(SessionMessageRecord).where(SessionMessageRecord.session_id == session_id)
+                    result = await db_session.execute(stmt)
+                    record = result.scalar_one_or_none()
+                    return record
                 except Exception as ex:
-                    db_session.rollback()
                     raise ex
                 finally:
-                    db_session.close()
+                    await db_gen.aclose()
 
-            def _db_remove(session_id, message):
-                db_session = next(get_db())
+            async def _db_remove(session_id, message):
+                db_gen = get_db()
+                db_session = await anext(db_gen)
                 try:
-                    db_session.query(SessionMessageRecord).filter(SessionMessageRecord.session_id == session_id).filter(SessionMessageRecord.message == message).delete()
-                    db_session.commit()
+                    stmt = select(SessionMessageRecord).where(SessionMessageRecord.session_id == session_id).filter(SessionMessageRecord.message == message)
+                    result = await db_session.execute(stmt)
+                    record = result.scalar_one_or_none()
+                    if record:
+                        await db_session.delete(record)
+                        await db_session.commit()
                     logger.info("Removed message from mcp_messages table")
                 except Exception as ex:
-                    db_session.rollback()
+                    await db_session.rollback()
                     raise ex
                 finally:
-                    db_session.close()
+                    await db_gen.aclose()
 
             async def message_check_loop(session_id):
                 while True:
-                    record = await asyncio.to_thread(_db_read, session_id)
+                    record = await _db_read(session_id)
 
                     if record:
                         message = json.loads(record.message)
@@ -496,9 +513,10 @@ class SessionRegistry(SessionBackend):
                             logger.info("Ready to respond")
                             await self.generate_response(message=message, transport=transport, server_id=server_id, user=user)
 
-                            await asyncio.to_thread(_db_remove, session_id, record.message)
+                            if record is not None:
+                                await _db_remove(session_id, record.message)
 
-                    session_exists = await asyncio.to_thread(_db_read_session, session_id)
+                    session_exists = await _db_read_session(session_id)
                     if not session_exists:
                         break
 
@@ -533,22 +551,26 @@ class SessionRegistry(SessionBackend):
         logger.info("Starting database cleanup task")
         while True:
             try:
-                # Clean up expired sessions every 5 minutes
-                def _db_cleanup():
-                    db_session = next(get_db())
+                async def _db_cleanup():
+                    db_gen = get_db()
+                    db_session = await anext(db_gen)
                     try:
                         # Delete sessions that haven't been accessed for TTL seconds
                         expiry_time = func.now() - func.make_interval(seconds=self._session_ttl)  # pylint: disable=not-callable
-                        result = db_session.query(SessionRecord).filter(SessionRecord.last_accessed < expiry_time).delete()
-                        db_session.commit()
-                        return result
+                        stmt = select(SessionRecord).where(SessionRecord.last_accessed < expiry_time)
+                        result = await db_session.execute(stmt)
+                        record = result.scalar_one_or_none()
+                        if record:
+                            await db_session.delete(record)
+                            await db_session.commit()
+                        return record
                     except Exception as ex:
-                        db_session.rollback()
+                        await db_session.rollback()
                         raise ex
                     finally:
-                        db_session.close()
+                        await db_gen.aclose()
 
-                deleted = await asyncio.to_thread(_db_cleanup)
+                deleted = await _db_cleanup()
                 if deleted > 0:
                     logger.info(f"Cleaned up {deleted} expired database sessions")
 
@@ -564,24 +586,27 @@ class SessionRegistry(SessionBackend):
                             continue
 
                         # Refresh session in database
-                        def _refresh_session():
-                            db_session = next(get_db())
+                        async def _refresh_session(session_id: str):
+                            db_gen = get_db()
+                            db_session = await anext(db_gen)
                             try:
-                                session = db_session.query(SessionRecord).filter(SessionRecord.session_id == session_id).first()
+                                stmt = select(SessionRecord).where(SessionRecord.session_id == session_id)
+                                result = await db_session.execute(stmt)
+                                session = result.scalar_one_or_none()
 
                                 if session:
                                     # Update last_accessed
                                     session.last_accessed = func.now()  # pylint: disable=not-callable
-                                    db_session.commit()
+                                    await db_session.commit()
                                     return True
                                 return False
                             except Exception as ex:
-                                db_session.rollback()
+                                await db_session.rollback()
                                 raise ex
                             finally:
-                                db_session.close()
+                                await db_gen.aclose()
 
-                        session_exists = await asyncio.to_thread(_refresh_session)
+                        session_exists = await _refresh_session(session_id)
                         if not session_exists:
                             # Session no longer in database, remove locally
                             await self.remove_session(session_id)

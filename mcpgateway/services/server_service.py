@@ -322,7 +322,19 @@ class ServerService:
             ServerError: For other update errors.
         """
         try:
-            server = await db.get(DbServer, server_id)
+            stmt = (
+                select(DbServer)
+                .where(DbServer.id == server_id)
+                .options(
+                    selectinload(DbServer.tools),
+                    selectinload(DbServer.prompts),
+                    selectinload(DbServer.resources),
+                    selectinload(DbServer.metrics),
+                )
+            )
+            result = await db.execute(stmt)
+            server = result.scalar_one_or_none()
+            
             if not server:
                 raise ServerNotFoundError(f"Server not found: {server_id}")
 
