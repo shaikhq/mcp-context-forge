@@ -164,7 +164,8 @@ class ServerService:
         """
         try:
             # Check for an existing server with the same name.
-            existing = db.execute(select(DbServer).where(DbServer.name == server_in.name)).scalar_one_or_none()
+            result = await db.execute(select(DbServer).where(DbServer.name == server_in.name))
+            existing = result.scalar_one_or_none()
             if existing:
                 raise ServerNameConflictError(server_in.name, is_active=existing.is_active, server_id=existing.id)
 
@@ -182,7 +183,7 @@ class ServerService:
                 for tool_id in server_in.associated_tools:
                     if tool_id.strip() == "":
                         continue
-                    tool_obj = db.get(DbTool, int(tool_id))
+                    tool_obj = await db.get(DbTool, int(tool_id))
                     if not tool_obj:
                         raise ServerError(f"Tool with id {tool_id} does not exist.")
                     db_server.tools.append(tool_obj)
@@ -192,7 +193,7 @@ class ServerService:
                 for resource_id in server_in.associated_resources:
                     if resource_id.strip() == "":
                         continue
-                    resource_obj = db.get(DbResource, int(resource_id))
+                    resource_obj = await db.get(DbResource, int(resource_id))
                     if not resource_obj:
                         raise ServerError(f"Resource with id {resource_id} does not exist.")
                     db_server.resources.append(resource_obj)
@@ -202,14 +203,14 @@ class ServerService:
                 for prompt_id in server_in.associated_prompts:
                     if prompt_id.strip() == "":
                         continue
-                    prompt_obj = db.get(DbPrompt, int(prompt_id))
+                    prompt_obj = await db.get(DbPrompt, int(prompt_id))
                     if not prompt_obj:
                         raise ServerError(f"Prompt with id {prompt_id} does not exist.")
                     db_server.prompts.append(prompt_obj)
 
             # Commit the new record and refresh.
-            db.commit()
-            db.refresh(db_server)
+            await db.commit()
+            await df.refresh(db_server)
             # Force load the relationship attributes.
             _ = db_server.tools, db_server.resources, db_server.prompts
 
@@ -231,10 +232,10 @@ class ServerService:
             logger.info(f"Registered server: {server_in.name}")
             return self._convert_server_to_read(db_server)
         except IntegrityError:
-            db.rollback()
+            await db.rollback()
             raise ServerError(f"Server already exists: {server_in.name}")
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise ServerError(f"Failed to register server: {str(e)}")
 
     async def list_servers(self, db: AsyncSession, include_inactive: bool = False) -> List[ServerRead]:
@@ -250,7 +251,8 @@ class ServerService:
         query = select(DbServer)
         if not include_inactive:
             query = query.where(DbServer.is_active)
-        servers = db.execute(query).scalars().all()
+        result = await db.execute(query)
+        servers = result.scalars().all()
         return [self._convert_server_to_read(s) for s in servers]
 
     async def get_server(self, db: AsyncSession, server_id: int) -> ServerRead:
@@ -266,7 +268,7 @@ class ServerService:
         Raises:
             ServerNotFoundError: If no server with the given ID exists.
         """
-        server = db.get(DbServer, server_id)
+        server = await db.get(DbServer, server_id)
         if not server:
             raise ServerNotFoundError(f"Server not found: {server_id}")
         server_data = {
@@ -301,13 +303,14 @@ class ServerService:
             ServerError: For other update errors.
         """
         try:
-            server = db.get(DbServer, server_id)
+            server = await db.get(DbServer, server_id)
             if not server:
                 raise ServerNotFoundError(f"Server not found: {server_id}")
 
             # Check for name conflict if name is being changed
             if server_update.name and server_update.name != server.name:
-                conflict = db.execute(select(DbServer).where(DbServer.name == server_update.name).where(DbServer.id != server_id)).scalar_one_or_none()
+                result = await db.execute(select(DbServer).where(DbServer.name == server_update.name).where(DbServer.id != server_id))
+                conflict = result.scalar_one_or_none()
                 if conflict:
                     raise ServerNameConflictError(
                         server_update.name,
@@ -327,7 +330,7 @@ class ServerService:
             if server_update.associated_tools is not None:
                 server.tools = []
                 for tool_id in server_update.associated_tools:
-                    tool_obj = db.get(DbTool, int(tool_id))
+                    tool_obj = await db.get(DbTool, int(tool_id))
                     if tool_obj:
                         server.tools.append(tool_obj)
 
@@ -335,7 +338,7 @@ class ServerService:
             if server_update.associated_resources is not None:
                 server.resources = []
                 for resource_id in server_update.associated_resources:
-                    resource_obj = db.get(DbResource, int(resource_id))
+                    resource_obj = await db.get(DbResource, int(resource_id))
                     if resource_obj:
                         server.resources.append(resource_obj)
 
@@ -343,13 +346,13 @@ class ServerService:
             if server_update.associated_prompts is not None:
                 server.prompts = []
                 for prompt_id in server_update.associated_prompts:
-                    prompt_obj = db.get(DbPrompt, int(prompt_id))
+                    prompt_obj = await db.get(DbPrompt, int(prompt_id))
                     if prompt_obj:
                         server.prompts.append(prompt_obj)
 
             server.updated_at = datetime.utcnow()
-            db.commit()
-            db.refresh(server)
+            await db.commit()
+            await df.refresh(server)
             # Force loading relationships
             _ = server.tools, server.resources, server.prompts
 
@@ -372,7 +375,7 @@ class ServerService:
             logger.debug(f"Server Data: {server_data}")
             return self._convert_server_to_read(server)
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise ServerError(f"Failed to update server: {str(e)}")
 
     async def toggle_server_status(self, db: AsyncSession, server_id: int, activate: bool) -> ServerRead:
@@ -391,15 +394,15 @@ class ServerService:
             ServerError: For other errors.
         """
         try:
-            server = db.get(DbServer, server_id)
+            server = await db.get(DbServer, server_id)
             if not server:
                 raise ServerNotFoundError(f"Server not found: {server_id}")
 
             if server.is_active != activate:
                 server.is_active = activate
                 server.updated_at = datetime.utcnow()
-                db.commit()
-                db.refresh(server)
+                await db.commit()
+                await df.refresh(server)
                 if activate:
                     await self._notify_server_activated(server)
                 else:
@@ -421,7 +424,7 @@ class ServerService:
             logger.debug(f"Server Data: {server_data}")
             return self._convert_server_to_read(server)
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise ServerError(f"Failed to toggle server status: {str(e)}")
 
     async def delete_server(self, db: AsyncSession, server_id: int) -> None:
@@ -436,18 +439,18 @@ class ServerService:
             ServerError: For other deletion errors.
         """
         try:
-            server = db.get(DbServer, server_id)
+            server = await db.get(DbServer, server_id)
             if not server:
                 raise ServerNotFoundError(f"Server not found: {server_id}")
 
             server_info = {"id": server.id, "name": server.name}
             db.delete(server)
-            db.commit()
+            await db.commit()
 
             await self._notify_server_deleted(server_info)
             logger.info(f"Deleted server: {server_info['name']}")
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise ServerError(f"Failed to delete server: {str(e)}")
 
     async def _publish_event(self, event: Dict[str, Any]) -> None:
@@ -588,19 +591,26 @@ class ServerService:
         Returns:
             ServerMetrics: Aggregated metrics computed from all ServerMetric records.
         """
-        total_executions = db.execute(select(func.count()).select_from(ServerMetric)).scalar() or 0  # pylint: disable=not-callable
+        total_executions_result = await db.execute(select(func.count()).select_from(ServerMetric))
+        total_executions = total_executions_result.scalar() or 0  # pylint: disable=not-callable
 
-        successful_executions = db.execute(select(func.count()).select_from(ServerMetric).where(ServerMetric.is_success)).scalar() or 0  # pylint: disable=not-callable
+        successful_executions_result = await db.execute(select(func.count()).select_from(ServerMetric).where(ServerMetric.is_success))
+        successful_executions = successful_executions_result.scalar() or 0  # pylint: disable=not-callable
 
-        failed_executions = db.execute(select(func.count()).select_from(ServerMetric).where(not_(ServerMetric.is_success))).scalar() or 0  # pylint: disable=not-callable
+        failed_executions_result = await db.execute(select(func.count()).select_from(ServerMetric).where(not_(ServerMetric.is_success)))
+        failed_executions = failed_executions_result.scalar() or 0  # pylint: disable=not-callable
 
-        min_response_time = db.execute(select(func.min(ServerMetric.response_time))).scalar()
+        min_response_time_result = await db.execute(select(func.min(ServerMetric.response_time)))
+        min_response_time = min_response_time_result.scalar()
 
-        max_response_time = db.execute(select(func.max(ServerMetric.response_time))).scalar()
+        max_response_time_result = await db.execute(select(func.max(ServerMetric.response_time)))
+        max_response_time = max_response_time_result.scalar()
 
-        avg_response_time = db.execute(select(func.avg(ServerMetric.response_time))).scalar()
+        avg_response_time_result = await db.execute(select(func.avg(ServerMetric.response_time)))
+        avg_response_time = avg_response_time_result.scalar()
 
-        last_execution_time = db.execute(select(func.max(ServerMetric.timestamp))).scalar()
+        last_execution_time_result = await db.execute(select(func.max(ServerMetric.timestamp)))
+        last_execution_time = last_execution_time_result.scalar()
 
         return ServerMetrics(
             total_executions=total_executions,
@@ -620,5 +630,5 @@ class ServerService:
         Args:
             db: Database session
         """
-        db.execute(delete(ServerMetric))
-        db.commit()
+        await db.execute(delete(ServerMetric))
+        await db.commit()

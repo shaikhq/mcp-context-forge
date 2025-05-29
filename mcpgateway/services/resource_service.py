@@ -158,7 +158,8 @@ class ResourceService:
         """
         try:
             # Check for URI conflicts (both active and inactive)
-            existing_resource = db.execute(select(DbResource).where(DbResource.uri == resource.uri)).scalar_one_or_none()
+            result = await db.execute(select(DbResource).where(DbResource.uri == resource.uri))
+            existing_resource = result.scalar_one_or_none()
 
             if existing_resource:
                 raise ResourceURIConflictError(
@@ -193,8 +194,8 @@ class ResourceService:
 
             # Add to DB
             db.add(db_resource)
-            db.commit()
-            db.refresh(db_resource)
+            await db.commit()
+            await df.refresh(db_resource)
 
             # Notify subscribers
             await self._notify_resource_added(db_resource)
@@ -203,10 +204,10 @@ class ResourceService:
             return self._convert_resource_to_read(db_resource)
 
         except IntegrityError:
-            db.rollback()
+            await db.rollback()
             raise ResourceError(f"Resource already exists: {resource.uri}")
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise ResourceError(f"Failed to register resource: {str(e)}")
 
     async def list_resources(self, db: AsyncSession, include_inactive: bool = False) -> List[ResourceRead]:
@@ -232,7 +233,8 @@ class ResourceService:
         if not include_inactive:
             query = query.where(DbResource.is_active)
         # Cursor-based pagination logic can be implemented here in the future.
-        resources = db.execute(query).scalars().all()
+        result = await db.execute(query)
+        resources = result.scalars().all()
         return [self._convert_resource_to_read(r) for r in resources]
 
     async def list_server_resources(self, db: AsyncSession, server_id: int, include_inactive: bool = False) -> List[ResourceRead]:
@@ -259,7 +261,8 @@ class ResourceService:
         if not include_inactive:
             query = query.where(DbResource.is_active)
         # Cursor-based pagination logic can be implemented here in the future.
-        resources = db.execute(query).scalars().all()
+        result = await db.execute(query)
+        resources = result.scalars().all()
         return [self._convert_resource_to_read(r) for r in resources]
 
     async def read_resource(self, db: AsyncSession, uri: str) -> ResourceContent:
@@ -280,11 +283,13 @@ class ResourceService:
             return await self._read_template_resource(uri)
 
         # Find resource
-        resource = db.execute(select(DbResource).where(DbResource.uri == uri).where(DbResource.is_active)).scalar_one_or_none()
+        result = await db.execute(select(DbResource).where(DbResource.uri == uri).where(DbResource.is_active))
+        resource = result.scalar_one_or_none()
 
         if not resource:
             # Check if inactive resource exists
-            inactive_resource = db.execute(select(DbResource).where(DbResource.uri == uri).where(not_(DbResource.is_active))).scalar_one_or_none()
+            result = await db.execute(select(DbResource).where(DbResource.uri == uri).where(not_(DbResource.is_active)))
+            inactive_resource = result.scalar_one_or_none()
 
             if inactive_resource:
                 raise ResourceNotFoundError(f"Resource '{uri}' exists but is inactive")
@@ -310,7 +315,7 @@ class ResourceService:
             ResourceError: For other errors
         """
         try:
-            resource = db.get(DbResource, resource_id)
+            resource = await db.get(DbResource, resource_id)
             if not resource:
                 raise ResourceNotFoundError(f"Resource not found: {resource_id}")
 
@@ -318,8 +323,8 @@ class ResourceService:
             if resource.is_active != activate:
                 resource.is_active = activate
                 resource.updated_at = datetime.utcnow()
-                db.commit()
-                db.refresh(resource)
+                await db.commit()
+                await df.refresh(resource)
 
                 # Notify subscribers
                 if activate:
@@ -332,7 +337,7 @@ class ResourceService:
             return self._convert_resource_to_read(resource)
 
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise ResourceError(f"Failed to toggle resource status: {str(e)}")
 
     async def subscribe_resource(self, db: AsyncSession, subscription: ResourceSubscription) -> None:
@@ -348,11 +353,13 @@ class ResourceService:
         """
         try:
             # Verify resource exists
-            resource = db.execute(select(DbResource).where(DbResource.uri == subscription.uri).where(DbResource.is_active)).scalar_one_or_none()
+            result = await db.execute(select(DbResource).where(DbResource.uri == subscription.uri).where(DbResource.is_active))
+            resource = result.scalar_one_or_none()
 
             if not resource:
                 # Check if inactive resource exists
-                inactive_resource = db.execute(select(DbResource).where(DbResource.uri == subscription.uri).where(not_(DbResource.is_active))).scalar_one_or_none()
+                result = await db.execute(select(DbResource).where(DbResource.uri == subscription.uri).where(not_(DbResource.is_active)))
+                inactive_resource = result.scalar_one_or_none()
 
                 if inactive_resource:
                     raise ResourceNotFoundError(f"Resource '{subscription.uri}' exists but is inactive")
@@ -362,12 +369,12 @@ class ResourceService:
             # Create subscription
             db_sub = DbSubscription(resource_id=resource.id, subscriber_id=subscription.subscriber_id)
             db.add(db_sub)
-            db.commit()
+            await db.commit()
 
             logger.info(f"Added subscription for {subscription.uri} by {subscription.subscriber_id}")
 
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise ResourceError(f"Failed to subscribe: {str(e)}")
 
     async def unsubscribe_resource(self, db: AsyncSession, subscription: ResourceSubscription) -> None:
@@ -379,19 +386,20 @@ class ResourceService:
         """
         try:
             # Find resource
-            resource = db.execute(select(DbResource).where(DbResource.uri == subscription.uri)).scalar_one_or_none()
+            result = await db.execute(select(DbResource).where(DbResource.uri == subscription.uri))
+            resource = result.scalar_one_or_none()
 
             if not resource:
                 return
 
             # Remove subscription
-            db.execute(select(DbSubscription).where(DbSubscription.resource_id == resource.id).where(DbSubscription.subscriber_id == subscription.subscriber_id)).delete()
-            db.commit()
+            await db.execute(select(DbSubscription).where(DbSubscription.resource_id == resource.id).where(DbSubscription.subscriber_id == subscription.subscriber_id)).delete()
+            await db.commit()
 
             logger.info(f"Removed subscription for {subscription.uri} by {subscription.subscriber_id}")
 
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             logger.error(f"Failed to unsubscribe: {str(e)}")
 
     async def update_resource(self, db: AsyncSession, uri: str, resource_update: ResourceUpdate) -> ResourceRead:
@@ -412,11 +420,13 @@ class ResourceService:
         """
         try:
             # Find resource
-            resource = db.execute(select(DbResource).where(DbResource.uri == uri).where(DbResource.is_active)).scalar_one_or_none()
+            result = await db.execute(select(DbResource).where(DbResource.uri == uri).where(DbResource.is_active))
+            resource = result.scalar_one_or_none()
 
             if not resource:
                 # Check if inactive resource exists
-                inactive_resource = db.execute(select(DbResource).where(DbResource.uri == uri).where(not_(DbResource.is_active))).scalar_one_or_none()
+                result = await db.execute(select(DbResource).where(DbResource.uri == uri).where(not_(DbResource.is_active)))
+                inactive_resource = result.scalar_one_or_none()
 
                 if inactive_resource:
                     raise ResourceNotFoundError(f"Resource '{uri}' exists but is inactive")
@@ -445,8 +455,8 @@ class ResourceService:
                 resource.size = len(resource_update.content)
 
             resource.updated_at = datetime.utcnow()
-            db.commit()
-            db.refresh(resource)
+            await db.commit()
+            await df.refresh(resource)
 
             # Notify subscribers
             await self._notify_resource_updated(resource)
@@ -455,7 +465,7 @@ class ResourceService:
             return self._convert_resource_to_read(resource)
 
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             if isinstance(e, ResourceNotFoundError):
                 raise e
             raise ResourceError(f"Failed to update resource: {str(e)}")
@@ -473,11 +483,12 @@ class ResourceService:
         """
         try:
             # Find resource by its URI.
-            resource = db.execute(select(DbResource).where(DbResource.uri == uri)).scalar_one_or_none()
+            result = await db.execute(select(DbResource).where(DbResource.uri == uri))
+            resource = result.scalar_one_or_none()
 
             if not resource:
                 # If resource doesn't exist, rollback and re-raise a ResourceNotFoundError.
-                db.rollback()
+                await db.rollback()
                 raise ResourceNotFoundError(f"Resource not found: {uri}")
 
             # Store resource info for notification before deletion.
@@ -488,11 +499,11 @@ class ResourceService:
             }
 
             # Remove subscriptions using SQLAlchemy's delete() expression.
-            db.execute(delete(DbSubscription).where(DbSubscription.resource_id == resource.id))
+            await db.execute(delete(DbSubscription).where(DbSubscription.resource_id == resource.id))
 
             # Hard delete the resource.
             db.delete(resource)
-            db.commit()
+            await db.commit()
 
             # Notify subscribers.
             await self._notify_resource_deleted(resource_info)
@@ -503,7 +514,7 @@ class ResourceService:
             # ResourceNotFoundError is re-raised to be handled in the endpoint.
             raise
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise ResourceError(f"Failed to delete resource: {str(e)}")
 
     async def get_resource_by_uri(self, db: AsyncSession, uri: str, include_inactive: bool = False) -> ResourceRead:
@@ -525,12 +536,14 @@ class ResourceService:
         if not include_inactive:
             query = query.where(DbResource.is_active)
 
-        resource = db.execute(query).scalar_one_or_none()
+        result = await db.execute(query)
+        resource = result.scalar_one_or_none()
 
         if not resource:
             if not include_inactive:
                 # Check if inactive resource exists
-                inactive_resource = db.execute(select(DbResource).where(DbResource.uri == uri).where(not_(DbResource.is_active))).scalar_one_or_none()
+                result = await db.execute(select(DbResource).where(DbResource.uri == uri).where(not_(DbResource.is_active)))
+                inactive_resource = result.scalar_one_or_none()
 
                 if inactive_resource:
                     raise ResourceNotFoundError(f"Resource '{uri}' exists but is inactive")
@@ -825,7 +838,8 @@ class ResourceService:
         if not include_inactive:
             query = query.where(DbResource.is_active)
         # Cursor-based pagination logic can be implemented here in the future.
-        templates = db.execute(query).scalars().all()
+        result = await db.execute(query)
+        templates = result.scalars().all()
         return [ResourceTemplate.model_validate(t) for t in templates]
 
     # --- Metrics ---
@@ -839,19 +853,26 @@ class ResourceService:
         Returns:
             ResourceMetrics: Aggregated metrics computed from all ResourceMetric records.
         """
-        total_executions = db.execute(select(func.count()).select_from(ResourceMetric)).scalar() or 0  # pylint: disable=not-callable
+        total_executions_result = await db.execute(select(func.count()).select_from(ResourceMetric))
+        total_executions = total_executions_result.scalar() or 0  # pylint: disable=not-callable
 
-        successful_executions = db.execute(select(func.count()).select_from(ResourceMetric).where(ResourceMetric.is_success)).scalar() or 0  # pylint: disable=not-callable
+        successful_executions_result = await db.execute(select(func.count()).select_from(ResourceMetric).where(ResourceMetric.is_success))
+        successful_executions = successful_executions_result.scalar() or 0  # pylint: disable=not-callable
 
-        failed_executions = db.execute(select(func.count()).select_from(ResourceMetric).where(not_(ResourceMetric.is_success))).scalar() or 0  # pylint: disable=not-callable
+        failed_executions_result = await db.execute(select(func.count()).select_from(ResourceMetric).where(not_(ResourceMetric.is_success)))
+        failed_executions = failed_executions_result.scalar() or 0  # pylint: disable=not-callable
 
-        min_response_time = db.execute(select(func.min(ResourceMetric.response_time))).scalar()
+        min_response_time_result = await db.execute(select(func.min(ResourceMetric.response_time)))
+        min_response_time = min_response_time_result.scalar()
 
-        max_response_time = db.execute(select(func.max(ResourceMetric.response_time))).scalar()
+        max_response_time_result = await db.execute(select(func.max(ResourceMetric.response_time)))
+        max_response_time = max_response_time_result.scalar()
 
-        avg_response_time = db.execute(select(func.avg(ResourceMetric.response_time))).scalar()
+        avg_response_time_result = await db.execute(select(func.avg(ResourceMetric.response_time)))
+        avg_response_time = avg_response_time_result.scalar()
 
-        last_execution_time = db.execute(select(func.max(ResourceMetric.timestamp))).scalar()
+        last_execution_time_result = await db.execute(select(func.max(ResourceMetric.timestamp)))
+        last_execution_time = last_execution_time_result.scalar()
 
         return ResourceMetrics(
             total_executions=total_executions,
@@ -871,5 +892,5 @@ class ResourceService:
         Args:
             db: Database session
         """
-        db.execute(delete(ResourceMetric))
-        db.commit()
+        await db.execute(delete(ResourceMetric))
+        await db.commit()

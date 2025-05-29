@@ -166,7 +166,8 @@ class PromptService:
         """
         try:
             # Check for name conflicts (both active and inactive)
-            existing_prompt = db.execute(select(DbPrompt).where(DbPrompt.name == prompt.name)).scalar_one_or_none()
+            result = await db.execute(select(DbPrompt).where(DbPrompt.name == prompt.name))
+            existing_prompt = result.scalar_one_or_none()
 
             if existing_prompt:
                 raise PromptNameConflictError(
@@ -203,8 +204,8 @@ class PromptService:
 
             # Add to DB
             db.add(db_prompt)
-            db.commit()
-            db.refresh(db_prompt)
+            await db.commit()
+            await df.refresh(db_prompt)
 
             # Notify subscribers
             await self._notify_prompt_added(db_prompt)
@@ -214,10 +215,10 @@ class PromptService:
             return PromptRead.model_validate(prompt_dict)
 
         except IntegrityError:
-            db.rollback()
+            await db.rollback()
             raise PromptError(f"Prompt already exists: {prompt.name}")
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise PromptError(f"Failed to register prompt: {str(e)}")
 
     async def list_prompts(self, db: AsyncSession, include_inactive: bool = False, cursor: Optional[str] = None) -> List[PromptRead]:
@@ -244,7 +245,8 @@ class PromptService:
             query = query.where(DbPrompt.is_active)
         # Cursor-based pagination logic can be implemented here in the future.
         logger.debug(cursor)
-        prompts = db.execute(query).scalars().all()
+        result = await db.execute(query).scalars().all()
+        prompts = result.scalars().all()
         return [PromptRead.model_validate(self._convert_db_prompt(p)) for p in prompts]
 
     async def list_server_prompts(self, db: AsyncSession, server_id: int, include_inactive: bool = False, cursor: Optional[str] = None) -> List[PromptRead]:
@@ -272,7 +274,8 @@ class PromptService:
             query = query.where(DbPrompt.is_active)
         # Cursor-based pagination logic can be implemented here in the future.
         logger.debug(cursor)
-        prompts = db.execute(query).scalars().all()
+        result = await db.execute(query)
+        prompts = result.scalars().all()
         return [PromptRead.model_validate(self._convert_db_prompt(p)) for p in prompts]
 
     async def get_prompt(self, db: AsyncSession, name: str, arguments: Optional[Dict[str, str]] = None) -> PromptResult:
@@ -291,10 +294,12 @@ class PromptService:
             PromptError: For other prompt errors
         """
         # Find prompt
-        prompt = db.execute(select(DbPrompt).where(DbPrompt.name == name).where(DbPrompt.is_active)).scalar_one_or_none()
+        result = await db.execute(select(DbPrompt).where(DbPrompt.name == name).where(DbPrompt.is_active))
+        prompt = result.scalar_one_or_none()
 
         if not prompt:
-            inactive_prompt = db.execute(select(DbPrompt).where(DbPrompt.name == name).where(not_(DbPrompt.is_active))).scalar_one_or_none()
+            result = await db.execute(select(DbPrompt).where(DbPrompt.name == name).where(not_(DbPrompt.is_active)))
+            inactive_prompt = result.scalar_one_or_none()
             if inactive_prompt:
                 raise PromptNotFoundError(f"Prompt '{name}' exists but is inactive")
 
@@ -336,16 +341,19 @@ class PromptService:
             PromptNameConflictError: When prompt name conflict happens
         """
         try:
-            prompt = db.execute(select(DbPrompt).where(DbPrompt.name == name).where(DbPrompt.is_active)).scalar_one_or_none()
+            result = await db.execute(select(DbPrompt).where(DbPrompt.name == name).where(DbPrompt.is_active))
+            prompt = result.scalar_one_or_none()
             if not prompt:
-                inactive_prompt = db.execute(select(DbPrompt).where(DbPrompt.name == name).where(not_(DbPrompt.is_active))).scalar_one_or_none()
+                result = await db.execute(select(DbPrompt).where(DbPrompt.name == name).where(not_(DbPrompt.is_active)))
+                inactive_prompt = result.scalar_one_or_none()
                 if inactive_prompt:
                     raise PromptNotFoundError(f"Prompt '{name}' exists but is inactive")
 
                 raise PromptNotFoundError(f"Prompt not found: {name}")
 
             if prompt_update.name is not None and prompt_update.name != prompt.name:
-                existing_prompt = db.execute(select(DbPrompt).where(DbPrompt.name == prompt_update.name).where(DbPrompt.id != prompt.id)).scalar_one_or_none()
+                result = await db.execute(select(DbPrompt).where(DbPrompt.name == prompt_update.name).where(DbPrompt.id != prompt.id))
+                existing_prompt = result.scalar_one_or_none()
                 if existing_prompt:
                     raise PromptNameConflictError(
                         prompt_update.name,
@@ -375,14 +383,14 @@ class PromptService:
                 prompt.argument_schema = argument_schema
 
             prompt.updated_at = datetime.utcnow()
-            db.commit()
-            db.refresh(prompt)
+            await db.commit()
+            await df.refresh(prompt)
 
             await self._notify_prompt_updated(prompt)
             return PromptRead.model_validate(self._convert_db_prompt(prompt))
 
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise PromptError(f"Failed to update prompt: {str(e)}")
 
     async def toggle_prompt_status(self, db: AsyncSession, prompt_id: int, activate: bool) -> PromptRead:
@@ -401,14 +409,14 @@ class PromptService:
             PromptError: For other errors
         """
         try:
-            prompt = db.get(DbPrompt, prompt_id)
+            prompt = await db.get(DbPrompt, prompt_id)
             if not prompt:
                 raise PromptNotFoundError(f"Prompt not found: {prompt_id}")
             if prompt.is_active != activate:
                 prompt.is_active = activate
                 prompt.updated_at = datetime.utcnow()
-                db.commit()
-                db.refresh(prompt)
+                await db.commit()
+                await df.refresh(prompt)
                 if activate:
                     await self._notify_prompt_activated(prompt)
                 else:
@@ -416,7 +424,7 @@ class PromptService:
                 logger.info(f"Prompt {prompt.name} {'activated' if activate else 'deactivated'}")
             return PromptRead.model_validate(self._convert_db_prompt(prompt))
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise PromptError(f"Failed to toggle prompt status: {str(e)}")
 
     # Get prompt details for admin ui
@@ -437,10 +445,12 @@ class PromptService:
         query = select(DbPrompt).where(DbPrompt.name == name)
         if not include_inactive:
             query = query.where(DbPrompt.is_active)
-        prompt = db.execute(query).scalar_one_or_none()
+        result = await db.execute(query)
+        prompt = result.scalar_one_or_none()
         if not prompt:
             if not include_inactive:
-                inactive_prompt = db.execute(select(DbPrompt).where(DbPrompt.name == name).where(not_(DbPrompt.is_active))).scalar_one_or_none()
+                result = await db.execute(select(DbPrompt).where(DbPrompt.name == name).where(not_(DbPrompt.is_active)))
+                inactive_prompt = result.scalar_one_or_none()
                 if inactive_prompt:
                     raise PromptNotFoundError(f"Prompt '{name}' exists but is inactive")
             raise PromptNotFoundError(f"Prompt not found: {name}")
@@ -460,16 +470,17 @@ class PromptService:
             Exception: If prompt not found
         """
         try:
-            prompt = db.execute(select(DbPrompt).where(DbPrompt.name == name)).scalar_one_or_none()
+            result = await db.execute(select(DbPrompt).where(DbPrompt.name == name))
+            prompt = result.scalar_one_or_none()
             if not prompt:
                 raise PromptNotFoundError(f"Prompt not found: {name}")
             prompt_info = {"id": prompt.id, "name": prompt.name}
             db.delete(prompt)
-            db.commit()
+            await db.commit()
             await self._notify_prompt_deleted(prompt_info)
             logger.info(f"Permanently deleted prompt: {name}")
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             if isinstance(e, PromptNotFoundError):
                 raise e
             raise PromptError(f"Failed to delete prompt: {str(e)}")
@@ -708,14 +719,21 @@ class PromptService:
                 - last_execution_time
         """
 
-        total = db.execute(select(func.count(PromptMetric.id))).scalar() or 0  # pylint: disable=not-callable
-        successful = db.execute(select(func.count(PromptMetric.id)).where(PromptMetric.is_success)).scalar() or 0  # pylint: disable=not-callable
-        failed = db.execute(select(func.count(PromptMetric.id)).where(not_(PromptMetric.is_success))).scalar() or 0  # pylint: disable=not-callable
+        total_result = await db.execute(select(func.count(PromptMetric.id)))
+        total = total_result.scalar() or 0  # pylint: disable=not-callable
+        successful_result = await db.execute(select(func.count(PromptMetric.id)).where(PromptMetric.is_success))
+        successful = successful_result.scalar() or 0  # pylint: disable=not-callable
+        failed_result = await db.execute(select(func.count(PromptMetric.id)).where(not_(PromptMetric.is_success)))
+        failed = failed_result.scalar() or 0  # pylint: disable=not-callable
         failure_rate = failed / total if total > 0 else 0.0
-        min_rt = db.execute(select(func.min(PromptMetric.response_time))).scalar()
-        max_rt = db.execute(select(func.max(PromptMetric.response_time))).scalar()
-        avg_rt = db.execute(select(func.avg(PromptMetric.response_time))).scalar()
-        last_time = db.execute(select(func.max(PromptMetric.timestamp))).scalar()
+        min_rt_result = await db.execute(select(func.min(PromptMetric.response_time)))
+        min_rt = min_rt_result.scalar()
+        max_rt_result = await db.execute(select(func.max(PromptMetric.response_time)))
+        max_rt = max_rt_result.scalar()
+        avg_rt_result = await db.execute(select(func.avg(PromptMetric.response_time)))
+        avg_rt = avg_rt_result.scalar()
+        last_time_result = await db.execute(select(func.max(PromptMetric.timestamp)))
+        last_time = last_time_result.scalar()
 
         return {
             "total_executions": total,
@@ -736,5 +754,5 @@ class PromptService:
             db: Database Session
         """
 
-        db.execute(delete(PromptMetric))
-        db.commit()
+        await db.execute(delete(PromptMetric))
+        await db.commit()

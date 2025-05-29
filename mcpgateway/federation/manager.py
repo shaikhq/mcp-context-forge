@@ -90,7 +90,8 @@ class FederationManager:
             await self._discovery.start()
 
             # Load existing gateways
-            gateways = db.execute(select(DbGateway).where(DbGateway.is_active)).scalars().all()
+            result = await db.execute(select(DbGateway).where(DbGateway.is_active))
+            gateways = result.scalars().all()
 
             for gateway in gateways:
                 self._active_gateways.add(gateway.url)
@@ -158,8 +159,8 @@ class FederationManager:
                 last_seen=datetime.utcnow(),
             )
             db.add(gateway)
-            db.commit()
-            db.refresh(gateway)
+            await db.commit()
+            await db.refresh(gateway)
 
             # Update tracking
             self._active_gateways.add(url)
@@ -171,7 +172,7 @@ class FederationManager:
             return gateway
 
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise FederationError(f"Failed to register gateway: {str(e)}")
 
     async def unregister_gateway(self, db: AsyncSession, gateway_id: int) -> None:
@@ -186,7 +187,7 @@ class FederationManager:
         """
         try:
             # Find gateway
-            gateway = db.get(DbGateway, gateway_id)
+            gateway = await db.get(DbGateway, gateway_id)
             if not gateway:
                 raise FederationError(f"Gateway not found: {gateway_id}")
 
@@ -195,9 +196,9 @@ class FederationManager:
             gateway.updated_at = datetime.utcnow()
 
             # Remove associated tools
-            db.execute(select(DbTool).where(DbTool.gateway_id == gateway_id)).delete()
+            await db.execute(select(DbTool).where(DbTool.gateway_id == gateway_id)).delete()
 
-            db.commit()
+            await db.commit()
 
             # Update tracking
             self._active_gateways.discard(gateway.url)
@@ -208,7 +209,7 @@ class FederationManager:
             logger.info(f"Unregistered gateway: {gateway.name}")
 
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise FederationError(f"Failed to unregister gateway: {str(e)}")
 
     async def get_gateway_tools(self, db: AsyncSession, gateway_id: int) -> List[Tool]:
@@ -224,7 +225,7 @@ class FederationManager:
         Raises:
             FederationError: If tool list cannot be retrieved
         """
-        gateway = db.get(DbGateway, gateway_id)
+        gateway = await db.get(DbGateway, gateway_id)
         if not gateway or not gateway.is_active:
             raise FederationError(f"Gateway not found: {gateway_id}")
 
@@ -249,7 +250,7 @@ class FederationManager:
         Raises:
             FederationError: If resource list cannot be retrieved
         """
-        gateway = db.get(DbGateway, gateway_id)
+        gateway = await db.get(DbGateway, gateway_id)
         if not gateway or not gateway.is_active:
             raise FederationError(f"Gateway not found: {gateway_id}")
 
@@ -274,7 +275,7 @@ class FederationManager:
         Raises:
             FederationError: If prompt list cannot be retrieved
         """
-        gateway = db.get(DbGateway, gateway_id)
+        gateway = await db.get(DbGateway, gateway_id)
         if not gateway or not gateway.is_active:
             raise FederationError(f"Gateway not found: {gateway_id}")
 
@@ -341,7 +342,8 @@ class FederationManager:
                             logger.warning(f"Failed to register discovered peer {peer.url}: {e}")
 
                 # Sync active gateways
-                gateways = db.execute(select(DbGateway).where(DbGateway.is_active)).scalars().all()
+                result = await db.execute(select(DbGateway).where(DbGateway.is_active))
+                gateways = result.scalars().all()
 
                 for gateway in gateways:
                     try:
@@ -354,11 +356,11 @@ class FederationManager:
                     except Exception as e:
                         logger.warning(f"Failed to sync gateway {gateway.name}: {e}")
 
-                db.commit()
+                await db.commit()
 
             except Exception as e:
                 logger.error(f"Sync loop error: {e}")
-                db.rollback()
+                await db.rollback()
 
             await asyncio.sleep(settings.federation_sync_interval)
 
@@ -371,7 +373,8 @@ class FederationManager:
         """
         while True:
             try:
-                gateways = db.execute(select(DbGateway).where(DbGateway.is_active)).scalars().all()
+                result = await db.execute(select(DbGateway).where(DbGateway.is_active))
+                gateways = result.scalars().all()
 
                 for gateway in gateways:
                     try:
@@ -384,11 +387,11 @@ class FederationManager:
                             gateway.is_active = False
                             self._active_gateways.discard(gateway.url)
 
-                db.commit()
+                await db.commit()
 
             except Exception as e:
                 logger.error(f"Health check error: {e}")
-                db.rollback()
+                await db.rollback()
 
             await asyncio.sleep(settings.health_check_interval)
 

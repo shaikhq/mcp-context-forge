@@ -75,8 +75,8 @@ class TestGatewayService:
         mock_scalar.scalar_one_or_none.return_value = None
         test_db.execute = Mock(return_value=mock_scalar)
         test_db.add = Mock()
-        test_db.commit = Mock()
-        test_db.refresh = Mock()
+        test_await db.commit = Mock()
+        test_await df.refresh = Mock()
 
         # Set up gateway service methods
         gateway_service._notify_gateway_added = AsyncMock()
@@ -99,8 +99,8 @@ class TestGatewayService:
 
         # Verify DB operations
         test_db.add.assert_called_once()
-        test_db.commit.assert_called_once()
-        test_db.refresh.assert_called_once()
+        test_await db.commit.assert_called_once()
+        test_await df.refresh.assert_called_once()
 
         # Verify gateway initialization
         gateway_service._initialize_gateway.assert_called_once_with("http://example.com/gateway")
@@ -141,7 +141,7 @@ class TestGatewayService:
         mock_scalar = Mock()
         mock_scalar.scalar_one_or_none.return_value = None
         test_db.execute = Mock(return_value=mock_scalar)
-        test_db.rollback = Mock()
+        test_await db.rollback = Mock()
 
         # Set up gateway service methods to fail initialization
         gateway_service._initialize_gateway = AsyncMock(side_effect=GatewayConnectionError("Failed to connect"))
@@ -156,7 +156,7 @@ class TestGatewayService:
         assert "Failed to register gateway" in str(exc_info.value)
 
         # Verify rollback
-        test_db.rollback.assert_called_once()
+        test_await db.rollback.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_list_gateways(self, gateway_service, mock_gateway, test_db):
@@ -183,13 +183,13 @@ class TestGatewayService:
     async def test_get_gateway(self, gateway_service, mock_gateway, test_db):
         """Test getting a gateway by ID."""
         # Mock DB get to return gateway
-        test_db.get = Mock(return_value=mock_gateway)
+        test_await db.get = Mock(return_value=mock_gateway)
 
         # Call method
         result = await gateway_service.get_gateway(test_db, 1)
 
         # Verify DB query
-        test_db.get.assert_called_once_with(DbGateway, 1)
+        test_await db.get.assert_called_once_with(DbGateway, 1)
 
         # Verify result
         assert result.name == "test_gateway"
@@ -202,7 +202,7 @@ class TestGatewayService:
     async def test_get_gateway_not_found(self, gateway_service, test_db):
         """Test getting a non-existent gateway."""
         # Mock DB get to return None
-        test_db.get = Mock(return_value=None)
+        test_await db.get = Mock(return_value=None)
 
         # Should raise NotFoundError
         with pytest.raises(GatewayNotFoundError) as exc_info:
@@ -217,7 +217,7 @@ class TestGatewayService:
         mock_gateway.is_active = False
 
         # Mock DB get to return inactive gateway
-        test_db.get = Mock(return_value=mock_gateway)
+        test_await db.get = Mock(return_value=mock_gateway)
 
         # Should raise NotFoundError mentioning inactive status
         with pytest.raises(GatewayNotFoundError) as exc_info:
@@ -229,15 +229,15 @@ class TestGatewayService:
     async def test_update_gateway(self, gateway_service, mock_gateway, test_db):
         """Test updating a gateway."""
         # Mock DB get to return gateway
-        test_db.get = Mock(return_value=mock_gateway)
+        test_await db.get = Mock(return_value=mock_gateway)
 
         # Mock DB to check for name conflicts
         mock_scalar = Mock()
         mock_scalar.scalar_one_or_none.return_value = None
         test_db.execute = Mock(return_value=mock_scalar)
 
-        test_db.commit = Mock()
-        test_db.refresh = Mock()
+        test_await db.commit = Mock()
+        test_await df.refresh = Mock()
 
         # Set up gateway service methods
         gateway_service._notify_gateway_updated = AsyncMock()
@@ -259,8 +259,8 @@ class TestGatewayService:
         result = await gateway_service.update_gateway(test_db, 1, gateway_update)
 
         # Verify DB operations
-        test_db.commit.assert_called_once()
-        test_db.refresh.assert_called_once()
+        test_await db.commit.assert_called_once()
+        test_await df.refresh.assert_called_once()
 
         # Verify gateway properties were updated
         assert mock_gateway.name == "updated_gateway"
@@ -282,7 +282,7 @@ class TestGatewayService:
     async def test_update_gateway_not_found(self, gateway_service, test_db):
         """Test updating a non-existent gateway."""
         # Mock DB get to return None
-        test_db.get = Mock(return_value=None)
+        test_await db.get = Mock(return_value=None)
 
         # Create update request
         gateway_update = GatewayUpdate(name="updated_gateway", description="An updated gateway")
@@ -306,14 +306,14 @@ class TestGatewayService:
         gateway2.is_active = True
 
         # Mock DB get to return gateway1
-        test_db.get = Mock(return_value=gateway1)
+        test_await db.get = Mock(return_value=gateway1)
 
         # Mock DB to check for name conflicts and return gateway2
         mock_scalar = Mock()
         mock_scalar.scalar_one_or_none.return_value = gateway2
         test_db.execute = Mock(return_value=mock_scalar)
 
-        test_db.rollback = Mock()
+        test_await db.rollback = Mock()
 
         # Create update request with conflicting name
         gateway_update = GatewayUpdate(
@@ -333,9 +333,9 @@ class TestGatewayService:
     async def test_toggle_gateway_status(self, gateway_service, mock_gateway, test_db):
         """Test toggling gateway active status."""
         # Mock DB get to return gateway
-        test_db.get = Mock(return_value=mock_gateway)
-        test_db.commit = Mock()
-        test_db.refresh = Mock()
+        test_await db.get = Mock(return_value=mock_gateway)
+        test_await db.commit = Mock()
+        test_await df.refresh = Mock()
 
         # Set up service methods
         gateway_service._notify_gateway_activated = AsyncMock()
@@ -359,9 +359,9 @@ class TestGatewayService:
         result = await gateway_service.toggle_gateway_status(test_db, 1, activate=False)
 
         # Verify DB operations
-        test_db.get.assert_called_once_with(DbGateway, 1)
-        test_db.commit.assert_called_once()
-        test_db.refresh.assert_called_once()
+        test_await db.get.assert_called_once_with(DbGateway, 1)
+        test_await db.commit.assert_called_once()
+        test_await df.refresh.assert_called_once()
 
         # Verify properties were updated
         assert mock_gateway.is_active is False
@@ -380,9 +380,9 @@ class TestGatewayService:
     async def test_delete_gateway(self, gateway_service, mock_gateway, test_db):
         """Test deleting a gateway."""
         # Mock DB get to return gateway
-        test_db.get = Mock(return_value=mock_gateway)
+        test_await db.get = Mock(return_value=mock_gateway)
         test_db.delete = Mock()
-        test_db.commit = Mock()
+        test_await db.commit = Mock()
         test_db.query = Mock()
         query_mock = Mock()
         filter_mock = Mock()
@@ -397,9 +397,9 @@ class TestGatewayService:
         await gateway_service.delete_gateway(test_db, 1)
 
         # Verify DB operations
-        test_db.get.assert_called_once_with(DbGateway, 1)
+        test_await db.get.assert_called_once_with(DbGateway, 1)
         test_db.delete.assert_called_once_with(mock_gateway)
-        test_db.commit.assert_called()
+        test_await db.commit.assert_called()
 
         # Verify notification
         gateway_service._notify_gateway_deleted.assert_called_once()
@@ -408,7 +408,7 @@ class TestGatewayService:
     async def test_delete_gateway_not_found(self, gateway_service, test_db):
         """Test deleting a non-existent gateway."""
         # Mock DB get to return None
-        test_db.get = Mock(return_value=None)
+        test_await db.get = Mock(return_value=None)
 
         # Should raise NotFoundError
         with pytest.raises(GatewayNotFoundError) as exc_info:

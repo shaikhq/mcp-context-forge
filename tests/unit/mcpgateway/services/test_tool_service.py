@@ -91,8 +91,8 @@ class TestToolService:
         mock_scalar.scalar_one_or_none.return_value = None
         test_db.execute = Mock(return_value=mock_scalar)
         test_db.add = Mock()
-        test_db.commit = Mock()
-        test_db.refresh = Mock()
+        test_await db.commit = Mock()
+        test_await df.refresh = Mock()
 
         # Set up tool service methods
         tool_service._notify_tool_added = AsyncMock()
@@ -141,8 +141,8 @@ class TestToolService:
 
         # Verify DB operations
         test_db.add.assert_called_once()
-        test_db.commit.assert_called_once()
-        test_db.refresh.assert_called_once()
+        test_await db.commit.assert_called_once()
+        test_await df.refresh.assert_called_once()
 
         # Verify result
         assert result.name == "test_tool"
@@ -187,8 +187,8 @@ class TestToolService:
         mock_scalar.scalar_one_or_none.return_value = None
         test_db.execute = Mock(return_value=mock_scalar)
         test_db.add = Mock()
-        test_db.commit = Mock(side_effect=IntegrityError("statement", "params", "orig"))
-        test_db.rollback = Mock()
+        test_await db.commit = Mock(side_effect=IntegrityError("statement", "params", "orig"))
+        test_await db.rollback = Mock()
 
         # Create tool request
         tool_create = ToolCreate(
@@ -204,7 +204,7 @@ class TestToolService:
             await tool_service.register_tool(test_db, tool_create)
 
         assert "Tool already exists" in str(exc_info.value)
-        test_db.rollback.assert_called_once()
+        test_await db.rollback.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_list_tools(self, tool_service, mock_tool, test_db):
@@ -259,7 +259,7 @@ class TestToolService:
     async def test_get_tool(self, tool_service, mock_tool, test_db):
         """Test getting a tool by ID."""
         # Mock DB get to return tool
-        test_db.get = Mock(return_value=mock_tool)
+        test_await db.get = Mock(return_value=mock_tool)
 
         # Mock conversion
         tool_read = ToolRead(
@@ -294,7 +294,7 @@ class TestToolService:
         result = await tool_service.get_tool(test_db, 1)
 
         # Verify DB query
-        test_db.get.assert_called_once_with(DbTool, 1)
+        test_await db.get.assert_called_once_with(DbTool, 1)
 
         # Verify result
         assert result == tool_read
@@ -304,7 +304,7 @@ class TestToolService:
     async def test_get_tool_not_found(self, tool_service, test_db):
         """Test getting a non-existent tool."""
         # Mock DB get to return None
-        test_db.get = Mock(return_value=None)
+        test_await db.get = Mock(return_value=None)
 
         # Should raise NotFoundError
         with pytest.raises(ToolNotFoundError) as exc_info:
@@ -316,9 +316,9 @@ class TestToolService:
     async def test_delete_tool(self, tool_service, mock_tool, test_db):
         """Test deleting a tool."""
         # Mock DB get to return tool
-        test_db.get = Mock(return_value=mock_tool)
+        test_await db.get = Mock(return_value=mock_tool)
         test_db.delete = Mock()
-        test_db.commit = Mock()
+        test_await db.commit = Mock()
 
         # Mock notification
         tool_service._notify_tool_deleted = AsyncMock()
@@ -327,9 +327,9 @@ class TestToolService:
         await tool_service.delete_tool(test_db, 1)
 
         # Verify DB operations
-        test_db.get.assert_called_once_with(DbTool, 1)
+        test_await db.get.assert_called_once_with(DbTool, 1)
         test_db.delete.assert_called_once_with(mock_tool)
-        test_db.commit.assert_called_once()
+        test_await db.commit.assert_called_once()
 
         # Verify notification
         tool_service._notify_tool_deleted.assert_called_once()
@@ -338,7 +338,7 @@ class TestToolService:
     async def test_delete_tool_not_found(self, tool_service, test_db):
         """Test deleting a non-existent tool."""
         # Mock DB get to return None
-        test_db.get = Mock(return_value=None)
+        test_await db.get = Mock(return_value=None)
 
         # Should raise NotFoundError
         with pytest.raises(ToolNotFoundError) as exc_info:
@@ -350,9 +350,9 @@ class TestToolService:
     async def test_toggle_tool_status(self, tool_service, mock_tool, test_db):
         """Test toggling tool active status."""
         # Mock DB get to return tool
-        test_db.get = Mock(return_value=mock_tool)
-        test_db.commit = Mock()
-        test_db.refresh = Mock()
+        test_await db.get = Mock(return_value=mock_tool)
+        test_await db.commit = Mock()
+        test_await df.refresh = Mock()
 
         # Mock notification methods
         tool_service._notify_tool_activated = AsyncMock()
@@ -391,9 +391,9 @@ class TestToolService:
         result = await tool_service.toggle_tool_status(test_db, 1, activate=False)
 
         # Verify DB operations
-        test_db.get.assert_called_once_with(DbTool, 1)
-        test_db.commit.assert_called_once()
-        test_db.refresh.assert_called_once()
+        test_await db.get.assert_called_once_with(DbTool, 1)
+        test_await db.commit.assert_called_once()
+        test_await df.refresh.assert_called_once()
 
         # Verify properties were updated
         assert mock_tool.is_active is False
@@ -409,15 +409,15 @@ class TestToolService:
     async def test_update_tool(self, tool_service, mock_tool, test_db):
         """Test updating a tool."""
         # Mock DB get to return tool
-        test_db.get = Mock(return_value=mock_tool)
+        test_await db.get = Mock(return_value=mock_tool)
 
         # Mock DB query to check for name conflicts (returns None = no conflict)
         mock_scalar = Mock()
         mock_scalar.scalar_one_or_none.return_value = None
         test_db.execute = Mock(return_value=mock_scalar)
 
-        test_db.commit = Mock()
-        test_db.refresh = Mock()
+        test_await db.commit = Mock()
+        test_await df.refresh = Mock()
 
         # Mock notification
         tool_service._notify_tool_updated = AsyncMock()
@@ -462,9 +462,9 @@ class TestToolService:
         result = await tool_service.update_tool(test_db, 1, tool_update)
 
         # Verify DB operations
-        test_db.get.assert_called_once_with(DbTool, 1)
-        test_db.commit.assert_called_once()
-        test_db.refresh.assert_called_once()
+        test_await db.get.assert_called_once_with(DbTool, 1)
+        test_await db.commit.assert_called_once()
+        test_await df.refresh.assert_called_once()
 
         # Verify properties were updated
         assert mock_tool.name == "updated_tool"
@@ -481,7 +481,7 @@ class TestToolService:
     async def test_update_tool_name_conflict(self, tool_service, mock_tool, test_db):
         """Test updating a tool with a name that conflicts with another tool."""
         # Mock DB get to return our tool
-        test_db.get = Mock(return_value=mock_tool)
+        test_await db.get = Mock(return_value=mock_tool)
 
         # Create a conflicting tool
         conflicting_tool = MagicMock(spec=DbTool)
@@ -494,7 +494,7 @@ class TestToolService:
         mock_scalar.scalar_one_or_none.return_value = conflicting_tool
         test_db.execute = Mock(return_value=mock_scalar)
 
-        test_db.rollback = Mock()
+        test_await db.rollback = Mock()
 
         # Create update request with conflicting name
         tool_update = ToolUpdate(
@@ -514,7 +514,7 @@ class TestToolService:
     async def test_update_tool_not_found(self, tool_service, test_db):
         """Test updating a non-existent tool."""
         # Mock DB get to return None
-        test_db.get = Mock(return_value=None)
+        test_await db.get = Mock(return_value=None)
 
         # Create update request
         tool_update = ToolUpdate(
@@ -650,21 +650,21 @@ class TestToolService:
         """Test resetting metrics."""
         # Mock DB operations
         test_db.execute = Mock()
-        test_db.commit = Mock()
+        test_await db.commit = Mock()
 
         # Reset all metrics
         await tool_service.reset_metrics(test_db)
 
         # Verify DB operations
         test_db.execute.assert_called_once()
-        test_db.commit.assert_called_once()
+        test_await db.commit.assert_called_once()
 
         # Reset metrics for specific tool
         test_db.execute.reset_mock()
-        test_db.commit.reset_mock()
+        test_await db.commit.reset_mock()
 
         await tool_service.reset_metrics(test_db, tool_id=1)
 
         # Verify DB operations with tool_id
         test_db.execute.assert_called_once()
-        test_db.commit.assert_called_once()
+        test_await db.commit.assert_called_once()

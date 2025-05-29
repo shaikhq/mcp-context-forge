@@ -106,7 +106,7 @@ if [ ! -f "$ENV_FILE" ]; then
 APP_NAME=MCP_Gateway
 HOST=${HOST}
 PORT=${PORT}
-DATABASE_URL=sqlite:///./mcp.db
+DATABASE_URL=sqlite+aiosqlite:///./mcp.db
 LOG_LEVEL=${LOG_LEVEL^^}
 LOG_FORMAT=${LOG_FORMAT}
 

@@ -128,9 +128,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
-
 # Initialize services
 tool_service = ToolService()
 resource_service = ResourceService()
@@ -1877,7 +1874,7 @@ async def healthcheck(db: AsyncSession = Depends(get_db)):
     """
     try:
         # Execute the query using text() for an explicit textual SQL expression.
-        db.execute(text("SELECT 1"))
+        await db.execute(text("SELECT 1"))
     except Exception as e:
         error_message = f"Database connection error: {str(e)}"
         logger.error(error_message)

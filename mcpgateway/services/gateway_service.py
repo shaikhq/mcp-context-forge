@@ -125,7 +125,8 @@ class GatewayService:
         """
         try:
             # Check for name conflicts (both active and inactive)
-            existing_gateway = db.execute(select(DbGateway).where(DbGateway.name == gateway.name)).scalar_one_or_none()
+            result = await db.execute(select(DbGateway).where(DbGateway.name == gateway.name))
+            existing_gateway = result.scalar_one_or_none()
 
             if existing_gateway:
                 raise GatewayNameConflictError(
@@ -147,8 +148,8 @@ class GatewayService:
 
             # Add to DB
             db.add(db_gateway)
-            db.commit()
-            db.refresh(db_gateway)
+            await db.commit()
+            await db.refresh(db_gateway)
 
             # Update tracking
             self._active_gateways.add(db_gateway.url)
@@ -156,7 +157,8 @@ class GatewayService:
             # Notify subscribers
             await self._notify_gateway_added(db_gateway)
 
-            inserted_gateway = db.execute(select(DbGateway).where(DbGateway.name == gateway.name)).scalar_one_or_none()
+            result = await db.execute(select(DbGateway).where(DbGateway.name == gateway.name))
+            inserted_gateway = result.scalar_one_or_none()
             inserted_gateway_id = inserted_gateway.id
 
             logger.info(f"Registered gateway: {gateway.name}")
@@ -168,10 +170,10 @@ class GatewayService:
             return GatewayRead.model_validate(gateway)
 
         except IntegrityError:
-            db.rollback()
+            await db.rollback()
             raise GatewayError(f"Gateway already exists: {gateway.name}")
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise GatewayError(f"Failed to register gateway: {str(e)}")
 
     async def list_gateways(self, db: AsyncSession, include_inactive: bool = False) -> List[GatewayRead]:
@@ -189,7 +191,8 @@ class GatewayService:
         if not include_inactive:
             query = query.where(DbGateway.is_active)
 
-        gateways = db.execute(query).scalars().all()
+        result = await db.execute(query)
+        gateways = result.scalars().all()
         return [GatewayRead.model_validate(g) for g in gateways]
 
     async def update_gateway(self, db: AsyncSession, gateway_id: int, gateway_update: GatewayUpdate) -> GatewayRead:
@@ -210,7 +213,7 @@ class GatewayService:
         """
         try:
             # Find gateway
-            gateway = db.get(DbGateway, gateway_id)
+            gateway = await db.get(DbGateway, gateway_id)
             if not gateway:
                 raise GatewayNotFoundError(f"Gateway not found: {gateway_id}")
 
@@ -219,7 +222,8 @@ class GatewayService:
 
             # Check for name conflicts if name is being changed
             if gateway_update.name is not None and gateway_update.name != gateway.name:
-                existing_gateway = db.execute(select(DbGateway).where(DbGateway.name == gateway_update.name).where(DbGateway.id != gateway_id)).scalar_one_or_none()
+                result = await db.execute(select(DbGateway).where(DbGateway.name == gateway_update.name).where(DbGateway.id != gateway_id))
+                existing_gateway = result.scalar_one_or_none()
 
                 if existing_gateway:
                     raise GatewayNameConflictError(
@@ -257,8 +261,8 @@ class GatewayService:
                     logger.warning(f"Failed to initialize updated gateway: {e}")
 
             gateway.updated_at = datetime.utcnow()
-            db.commit()
-            db.refresh(gateway)
+            await db.commit()
+            await db.refresh(gateway)
 
             # Notify subscribers
             await self._notify_gateway_updated(gateway)
@@ -267,7 +271,7 @@ class GatewayService:
             return GatewayRead.model_validate(gateway)
 
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise GatewayError(f"Failed to update gateway: {str(e)}")
 
     async def get_gateway(self, db: AsyncSession, gateway_id: int, include_inactive: bool = False) -> GatewayRead:
@@ -284,7 +288,7 @@ class GatewayService:
         Raises:
             GatewayNotFoundError: If gateway not found
         """
-        gateway = db.get(DbGateway, gateway_id)
+        gateway = await db.get(DbGateway, gateway_id)
         if not gateway:
             raise GatewayNotFoundError(f"Gateway not found: {gateway_id}")
 
@@ -309,7 +313,7 @@ class GatewayService:
             GatewayError: For other errors
         """
         try:
-            gateway = db.get(DbGateway, gateway_id)
+            gateway = await db.get(DbGateway, gateway_id)
             if not gateway:
                 raise GatewayNotFoundError(f"Gateway not found: {gateway_id}")
 
@@ -331,10 +335,11 @@ class GatewayService:
                 else:
                     self._active_gateways.discard(gateway.url)
 
-                db.commit()
-                db.refresh(gateway)
+                await db.commit()
+                await db.refresh(gateway)
 
-                tools = db.query(DbTool).filter(DbTool.gateway_id == gateway_id).all()
+                result = await db.query(DbTool).filter(DbTool.gateway_id == gateway_id)
+                tools = result.all()
                 for tool in tools:
                     await self.tool_service.toggle_tool_status(db, tool.id, activate)
 
@@ -349,7 +354,7 @@ class GatewayService:
             return GatewayRead.model_validate(gateway)
 
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise GatewayError(f"Failed to toggle gateway status: {str(e)}")
 
     async def _notify_gateway_updated(self, gateway: DbGateway) -> None:
@@ -385,7 +390,7 @@ class GatewayService:
         """
         try:
             # Find gateway
-            gateway = db.get(DbGateway, gateway_id)
+            gateway = await db.get(DbGateway, gateway_id)
             if not gateway:
                 raise GatewayNotFoundError(f"Gateway not found: {gateway_id}")
 
@@ -394,15 +399,15 @@ class GatewayService:
 
             # Remove associated tools
             try:
-                db.query(DbTool).filter(DbTool.gateway_id == gateway_id).delete()
-                db.commit()
+                await db.query(DbTool).filter(DbTool.gateway_id == gateway_id).delete()
+                await db.commit()
                 logger.info(f"Deleted tools associated with gateway: {gateway.name}")
             except Exception as ex:
                 logger.warning(f"No tools found: {ex}")
 
             # Hard delete gateway
             db.delete(gateway)
-            db.commit()
+            await db.commit()
 
             # Update tracking
             self._active_gateways.discard(gateway.url)
@@ -413,7 +418,7 @@ class GatewayService:
             logger.info(f"Permanently deleted gateway: {gateway.name}")
 
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise GatewayError(f"Failed to delete gateway: {str(e)}")
 
     async def forward_request(self, gateway: DbGateway, method: str, params: Optional[Dict[str, Any]] = None) -> Any:
@@ -495,7 +500,8 @@ class GatewayService:
         }
 
         # Get all active gateways
-        gateways = db.execute(select(DbGateway).where(DbGateway.is_active)).scalars().all()
+        result = await db.execute(select(DbGateway).where(DbGateway.is_active))
+        gateways = result.scalars().all()
 
         # Combine capabilities
         for gateway in gateways:
@@ -582,7 +588,8 @@ class GatewayService:
             try:
                 async with Session() as db:
                     # Get active gateways
-                    gateways = db.execute(select(DbGateway).where(DbGateway.is_active)).scalars().all()
+                    result = await db.execute(select(DbGateway).where(DbGateway.is_active))
+                    gateways = result.scalars().all()
 
                     # Check each gateway
                     for gateway in gateways:
@@ -593,7 +600,7 @@ class GatewayService:
                         except Exception as e:
                             logger.error(f"Health check failed for {gateway.name}: {str(e)}")
 
-                    db.commit()
+                    await db.commit()
 
             except Exception as e:
                 logger.error(f"Health check run failed: {str(e)}")

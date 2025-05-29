@@ -45,7 +45,7 @@ from sqlalchemy.orm import (
     relationship,
     sessionmaker,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 from mcpgateway.config import settings
 from mcpgateway.types import ResourceContent
@@ -1048,7 +1048,7 @@ async def get_db() -> AsyncSession:
 
 
 # Create all tables
-def init_db():
+async def init_db():
     """
     Initialize database tables.
 
@@ -1056,6 +1056,11 @@ def init_db():
         Exception: If database initialization fails.
     """
     try:
-        Base.metadata.create_all(bind=engine)
+        async with engine.begin() as conn:
+            # Use this to drop all tables (optional)
+            # await conn.run_sync(Base.metadata.drop_all)
+            
+            # This will create all tables
+            await conn.run_sync(Base.metadata.create_all)
     except SQLAlchemyError as e:
         raise Exception(f"Failed to initialize database: {str(e)}")

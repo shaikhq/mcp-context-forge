@@ -123,7 +123,8 @@ class ForwardingService:
         """
         try:
             # Find tool
-            tool = db.execute(select(DbTool).where(DbTool.name == tool_name).where(DbTool.is_active)).scalar_one_or_none()
+            result = await db.execute(select(DbTool).where(DbTool.name == tool_name).where(DbTool.is_active))
+            tool = result.scalar_one_or_none()
 
             if not tool:
                 raise ForwardingError(f"Tool not found: {tool_name}")
@@ -204,7 +205,7 @@ class ForwardingService:
             httpx.TimeoutException: If unable to connect after retries
         """
         # Get gateway
-        gateway = db.get(DbGateway, gateway_id)
+        gateway = await db.get(DbGateway, gateway_id)
         if not gateway or not gateway.is_active:
             raise ForwardingError(f"Gateway not found: {gateway_id}")
 
@@ -260,7 +261,8 @@ class ForwardingService:
             ForwardingError: If all forwards fail
         """
         # Get active gateways
-        gateways = db.execute(select(DbGateway).where(DbGateway.is_active)).scalars().all()
+        result = await db.execute(select(DbGateway).where(DbGateway.is_active))
+        gateways = result.scalars().all()
 
         # Forward to each gateway
         results = []
@@ -289,7 +291,8 @@ class ForwardingService:
             Gateway record or None
         """
         # Get active gateways
-        gateways = db.execute(select(DbGateway).where(DbGateway.is_active)).scalars().all()
+        result = await db.execute(select(DbGateway).where(DbGateway.is_active))
+        gateways = result.scalars().all()
 
         # Check each gateway
         for gateway in gateways:

@@ -53,7 +53,7 @@ def test_db(test_engine):
     try:
         yield db
     finally:
-        db.close()
+        await db.close()
 
 
 @pytest.fixture

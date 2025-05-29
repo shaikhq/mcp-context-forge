@@ -12,7 +12,7 @@ Environment variables:
 - APP_NAME: Gateway name (default: "MCP Gateway")
 - HOST: Host to bind to (default: "0.0.0.0")
 - PORT: Port to listen on (default: 4444)
-- DATABASE_URL: SQLite database URL (default: "sqlite:///./mcp.db")
+- DATABASE_URL: SQLite database URL (default: "sqlite+aiosqlite:///./mcp.db")
 - BASIC_AUTH_USER: Admin username (default: "admin")
 - BASIC_AUTH_PASSWORD: Admin password (default: "changeme")
 - LOG_LEVEL: Logging level (default: "INFO")
@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     app_name: str = Field("MCP Gateway", env="APP_NAME")
     host: str = Field("127.0.0.1", env="HOST")
     port: int = Field(4444, env="PORT")
-    database_url: str = "sqlite:///./mcp.db"
+    database_url: str = "sqlite+aiosqlite:///./mcp.db"
     templates_dir: Path = Path("mcpgateway/templates")
     static_dir: Path = Path("mcpgateway/static")
     app_root_path: str = ""

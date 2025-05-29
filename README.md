@@ -162,7 +162,7 @@ You can get started by copying the provided `.env.examples` to `.env` and making
 | `APP_NAME`      | Gateway / OpenAPI title                  | `MCP Gateway`          | string                 |
 | `HOST`          | Bind address for the app                 | `0.0.0.0`              | IPv4/IPv6              |
 | `PORT`          | Port the server listens on               | `4444`                 | 1–65535                |
-| `DATABASE_URL`  | SQLAlchemy connection URL                | `sqlite:///./mcp.db`   | any SQLAlchemy dialect |
+| `DATABASE_URL`  | SQLAlchemy connection URL                | `sqlite+aiosqlite:///./mcp.db`   | any SQLAlchemy dialect |
 | `APP_ROOT_PATH` | Subpath prefix for app (e.g. `/gateway`) | (empty)                | string                 |
 | `TEMPLATES_DIR` | Path to Jinja2 templates                 | `mcpgateway/templates` | path                   |
 | `STATIC_DIR`    | Path to static files                     | `mcpgateway/static`    | path                   |
