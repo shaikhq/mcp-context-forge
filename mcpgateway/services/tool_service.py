@@ -273,7 +273,17 @@ class ToolService:
         Returns:
             List[ToolRead]: A list of registered tools represented as ToolRead objects.
         """
-        query = select(DbTool).join(server_tool_association, DbTool.id == server_tool_association.c.tool_id).where(server_tool_association.c.server_id == server_id)
+        query = (
+            select(DbTool)
+            .join(server_tool_association, DbTool.id == server_tool_association.c.tool_id)
+            .where(server_tool_association.c.server_id == server_id)
+            .options(
+                selectinload(DbTool.gateway),
+                selectinload(DbTool.servers),
+                selectinload(DbTool.metrics),
+                selectinload(DbTool.federated_with),
+            )
+        )
         cursor = None  # Placeholder for pagination; ignore for now
         logger.debug(f"Listing server tools for server_id={server_id} with include_inactive={include_inactive}, cursor={cursor}")
         if not include_inactive:
