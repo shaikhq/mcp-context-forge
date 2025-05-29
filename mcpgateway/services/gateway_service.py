@@ -187,7 +187,6 @@ class GatewayService:
             List of registered gateways
         """
         query = select(DbGateway)
-
         if not include_inactive:
             query = query.where(DbGateway.is_active)
 

@@ -27,6 +27,7 @@ from mcp.client.sse import sse_client
 from sqlalchemy import delete, func, not_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from mcpgateway.config import settings
 from mcpgateway.db import Gateway as DbGateway
@@ -243,6 +244,12 @@ class ToolService:
             List[ToolRead]: A list of registered tools represented as ToolRead objects.
         """
         query = select(DbTool)
+        query = query.options(
+            selectinload(DbTool.gateway),
+            selectinload(DbTool.servers),
+            selectinload(DbTool.metrics),
+            selectinload(DbTool.federated_with),
+        )
         cursor = None  # Placeholder for pagination; ignore for now
         logger.debug(f"Listing tools with include_inactive={include_inactive}, cursor={cursor}")
         if not include_inactive:

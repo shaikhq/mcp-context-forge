@@ -26,6 +26,7 @@ import parse
 from sqlalchemy import delete, func, not_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from mcpgateway.db import Resource as DbResource
 from mcpgateway.db import ResourceMetric
@@ -230,6 +231,12 @@ class ResourceService:
             List[ResourceRead]: A list of resources represented as ResourceRead objects.
         """
         query = select(DbResource)
+        query = query.options(
+            selectinload(DbResource.gateway),
+            selectinload(DbResource.servers),
+            selectinload(DbResource.metrics),
+            selectinload(DbResource.federated_with),
+        )
         if not include_inactive:
             query = query.where(DbResource.is_active)
         # Cursor-based pagination logic can be implemented here in the future.

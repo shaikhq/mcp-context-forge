@@ -24,6 +24,7 @@ from jinja2 import Environment, meta, select_autoescape
 from sqlalchemy import delete, func, not_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from mcpgateway.db import Prompt as DbPrompt
 from mcpgateway.db import PromptMetric, server_prompt_association
@@ -241,6 +242,12 @@ class PromptService:
             List[PromptRead]: A list of prompt templates represented as PromptRead objects.
         """
         query = select(DbPrompt)
+        query = query.options(
+            selectinload(DbPrompt.gateway),
+            selectinload(DbPrompt.servers),
+            selectinload(DbPrompt.metrics),
+            selectinload(DbPrompt.federated_with),
+        )
         if not include_inactive:
             query = query.where(DbPrompt.is_active)
         # Cursor-based pagination logic can be implemented here in the future.
