@@ -1063,7 +1063,7 @@ async def init_db():
             # await conn.run_sync(Base.metadata.drop_all)
             
             # This will create all tables
-            await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+            await conn.run_sync(Base.metadata.create_all)
     except SQLAlchemyError as e:
         logger.error(f"Failed to initialize database: {str(e)}", exc_info=True)
         raise Exception(f"Failed to initialize database: {str(e)}")

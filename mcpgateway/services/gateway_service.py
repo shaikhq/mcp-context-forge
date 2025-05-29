@@ -22,7 +22,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional, Set
 import httpx
 from mcp import ClientSession
 from mcp.client.sse import sse_client
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -398,8 +398,8 @@ class GatewayService:
 
             # Remove associated tools
             try:
-                await db.query(DbTool).filter(DbTool.gateway_id == gateway_id).delete()
-                await db.commit()
+                tool_delete_stmt = delete(DbTool).where(DbTool.gateway_id == gateway_id)
+                await db.execute(tool_delete_stmt)
                 logger.info(f"Deleted tools associated with gateway: {gateway.name}")
             except Exception as ex:
                 logger.warning(f"No tools found: {ex}")
