@@ -92,7 +92,7 @@ class TestToolService:
         test_db.execute = Mock(return_value=mock_scalar)
         test_db.add = Mock()
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Set up tool service methods
         tool_service._notify_tool_added = AsyncMock()
@@ -142,7 +142,7 @@ class TestToolService:
         # Verify DB operations
         test_db.add.assert_called_once()
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
 
         # Verify result
         assert result.name == "test_tool"
@@ -352,7 +352,7 @@ class TestToolService:
         # Mock DB get to return tool
         test_await db.get = Mock(return_value=mock_tool)
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Mock notification methods
         tool_service._notify_tool_activated = AsyncMock()
@@ -393,7 +393,7 @@ class TestToolService:
         # Verify DB operations
         test_await db.get.assert_called_once_with(DbTool, 1)
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
 
         # Verify properties were updated
         assert mock_tool.is_active is False
@@ -417,7 +417,7 @@ class TestToolService:
         test_db.execute = Mock(return_value=mock_scalar)
 
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Mock notification
         tool_service._notify_tool_updated = AsyncMock()
@@ -464,7 +464,7 @@ class TestToolService:
         # Verify DB operations
         test_await db.get.assert_called_once_with(DbTool, 1)
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
 
         # Verify properties were updated
         assert mock_tool.name == "updated_tool"

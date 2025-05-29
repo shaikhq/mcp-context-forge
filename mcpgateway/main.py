@@ -56,7 +56,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from mcpgateway.admin import admin_router
 from mcpgateway.cache import ResourceCache, SessionRegistry
 from mcpgateway.config import jsonpath_modifier, settings
-from mcpgateway.db import Base, SessionLocal, engine, get_db
+from mcpgateway.db import Base, SessionLocal, engine, get_db, init_db
 from mcpgateway.handlers.sampling import SamplingHandler
 from mcpgateway.schemas import (
     GatewayCreate,
@@ -151,12 +151,69 @@ session_registry = SessionRegistry(
 # Initialize cache
 resource_cache = ResourceCache(max_size=settings.resource_cache_size, ttl=settings.resource_cache_ttl)
 
+
+####################
+# Startup/Shutdown #
+####################
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """
+    Manage the application's startup and shutdown lifecycle.
+
+    The function initialises every core service on entry and then
+    shuts them down in reverse order on exit.
+
+    Yields:
+        None
+
+    Raises:
+        Exception: Any unhandled error that occurs during service
+            initialisation or shutdown is re-raised to the caller.
+    """
+    logger.info("Starting MCP Gateway services")
+    try:
+        await init_db()
+
+        await tool_service.initialize()
+        await resource_service.initialize()
+        await prompt_service.initialize()
+        await gateway_service.initialize()
+        await root_service.initialize()
+        await completion_service.initialize()
+        await logging_service.initialize()
+        await sampling_handler.initialize()
+        await resource_cache.initialize()
+        logger.info("All services initialized successfully")
+        yield
+    except Exception as e:
+        logger.error(f"Error during startup: {str(e)}", exc_info=True)
+        raise
+    finally:
+        logger.info("Shutting down MCP Gateway services")
+        for service in [
+            resource_cache,
+            sampling_handler,
+            logging_service,
+            completion_service,
+            root_service,
+            gateway_service,
+            prompt_service,
+            resource_service,
+            tool_service,
+        ]:
+            try:
+                await service.shutdown()
+            except Exception as e:
+                logger.error(f"Error shutting down {service.__class__.__name__}: {str(e)}")
+        logger.info("Shutdown complete")
+
 # Initialize FastAPI app
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
     description="A FastAPI-based MCP Gateway with federation support",
     root_path=settings.app_root_path,
+    lifespan=lifespan,
 )
 
 
@@ -1880,61 +1937,6 @@ async def healthcheck(db: AsyncSession = Depends(get_db)):
         logger.error(error_message)
         return {"status": "unhealthy", "error": error_message}
     return {"status": "healthy"}
-
-
-####################
-# Startup/Shutdown #
-####################
-@asynccontextmanager
-async def lifespan() -> AsyncIterator[None]:
-    """
-    Manage the application's startup and shutdown lifecycle.
-
-    The function initialises every core service on entry and then
-    shuts them down in reverse order on exit.
-
-    Yields:
-        None
-
-    Raises:
-        Exception: Any unhandled error that occurs during service
-            initialisation or shutdown is re-raised to the caller.
-    """
-    logger.info("Starting MCP Gateway services")
-    try:
-        await tool_service.initialize()
-        await resource_service.initialize()
-        await prompt_service.initialize()
-        await gateway_service.initialize()
-        await root_service.initialize()
-        await completion_service.initialize()
-        await logging_service.initialize()
-        await sampling_handler.initialize()
-        await resource_cache.initialize()
-        logger.info("All services initialized successfully")
-        yield
-    except Exception as e:
-        logger.error(f"Error during startup: {str(e)}")
-        raise
-    finally:
-        logger.info("Shutting down MCP Gateway services")
-        for service in [
-            resource_cache,
-            sampling_handler,
-            logging_service,
-            completion_service,
-            root_service,
-            gateway_service,
-            prompt_service,
-            resource_service,
-            tool_service,
-        ]:
-            try:
-                await service.shutdown()
-            except Exception as e:
-                logger.error(f"Error shutting down {service.__class__.__name__}: {str(e)}")
-        logger.info("Shutdown complete")
-
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")

@@ -27,7 +27,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcpgateway.config import settings
-from mcpgateway.db import Gateway as DbGateway
+from mcpgateway.db import Gateway as DbGateway, AsyncSessionLocal
 from mcpgateway.db import Tool as DbTool
 from mcpgateway.schemas import GatewayCreate, GatewayRead, GatewayUpdate, ToolCreate
 from mcpgateway.services.tool_service import ToolService
@@ -586,7 +586,7 @@ class GatewayService:
         """Run periodic health checks on all gateways."""
         while True:
             try:
-                async with Session() as db:
+                async with AsyncSessionLocal() as db:
                     # Get active gateways
                     result = await db.execute(select(DbGateway).where(DbGateway.is_active))
                     gateways = result.scalars().all()

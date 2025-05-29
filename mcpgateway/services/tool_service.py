@@ -217,7 +217,7 @@ class ToolService:
             )
             db.add(db_tool)
             await db.commit()
-            await df.refresh(db_tool)
+            await db.refresh(db_tool)
             await self._notify_tool_added(db_tool)
             logger.info(f"Registered tool: {tool.name}")
             return self._convert_tool_to_read(db_tool)
@@ -340,7 +340,7 @@ class ToolService:
                 tool.is_active = activate
                 tool.updated_at = datetime.utcnow()
                 await db.commit()
-                await df.refresh(tool)
+                await db.refresh(tool)
                 if activate:
                     await self._notify_tool_activated(tool)
                 else:
@@ -617,7 +617,7 @@ class ToolService:
 
             tool.updated_at = datetime.utcnow()
             await db.commit()
-            await df.refresh(tool)
+            await db.refresh(tool)
             await self._notify_tool_updated(tool)
             logger.info(f"Updated tool: {tool.name}")
             return self._convert_tool_to_read(tool)

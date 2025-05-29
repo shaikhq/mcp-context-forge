@@ -205,7 +205,7 @@ class PromptService:
             # Add to DB
             db.add(db_prompt)
             await db.commit()
-            await df.refresh(db_prompt)
+            await db.refresh(db_prompt)
 
             # Notify subscribers
             await self._notify_prompt_added(db_prompt)
@@ -245,7 +245,7 @@ class PromptService:
             query = query.where(DbPrompt.is_active)
         # Cursor-based pagination logic can be implemented here in the future.
         logger.debug(cursor)
-        result = await db.execute(query).scalars().all()
+        result = await db.execute(query)
         prompts = result.scalars().all()
         return [PromptRead.model_validate(self._convert_db_prompt(p)) for p in prompts]
 
@@ -384,7 +384,7 @@ class PromptService:
 
             prompt.updated_at = datetime.utcnow()
             await db.commit()
-            await df.refresh(prompt)
+            await db.refresh(prompt)
 
             await self._notify_prompt_updated(prompt)
             return PromptRead.model_validate(self._convert_db_prompt(prompt))
@@ -416,7 +416,7 @@ class PromptService:
                 prompt.is_active = activate
                 prompt.updated_at = datetime.utcnow()
                 await db.commit()
-                await df.refresh(prompt)
+                await db.refresh(prompt)
                 if activate:
                     await self._notify_prompt_activated(prompt)
                 else:

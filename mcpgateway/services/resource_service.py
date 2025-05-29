@@ -195,7 +195,7 @@ class ResourceService:
             # Add to DB
             db.add(db_resource)
             await db.commit()
-            await df.refresh(db_resource)
+            await db.refresh(db_resource)
 
             # Notify subscribers
             await self._notify_resource_added(db_resource)
@@ -324,7 +324,7 @@ class ResourceService:
                 resource.is_active = activate
                 resource.updated_at = datetime.utcnow()
                 await db.commit()
-                await df.refresh(resource)
+                await db.refresh(resource)
 
                 # Notify subscribers
                 if activate:
@@ -456,7 +456,7 @@ class ResourceService:
 
             resource.updated_at = datetime.utcnow()
             await db.commit()
-            await df.refresh(resource)
+            await db.refresh(resource)
 
             # Notify subscribers
             await self._notify_resource_updated(resource)

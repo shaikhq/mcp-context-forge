@@ -112,7 +112,7 @@ class TestServerService:
         test_db.execute = Mock(return_value=mock_scalar)
         test_db.add = Mock()
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Set up await db.get to return associated objects
         test_await db.get = Mock(
@@ -159,7 +159,7 @@ class TestServerService:
         # Verify DB operations
         test_db.add.assert_called_once()
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
 
         # Verify notification
         server_service._notify_server_added.assert_called_once()
@@ -337,7 +337,7 @@ class TestServerService:
         test_db.execute = Mock(return_value=mock_scalar)
 
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Set up service methods
         server_service._notify_server_updated = AsyncMock()
@@ -374,7 +374,7 @@ class TestServerService:
 
         # Verify DB operations
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
 
         # Verify server properties were updated
         assert mock_server.name == "updated_server"
@@ -449,7 +449,7 @@ class TestServerService:
         # Mock DB get to return server
         test_await db.get = Mock(return_value=mock_server)
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Set up service methods
         server_service._notify_server_activated = AsyncMock()
@@ -485,7 +485,7 @@ class TestServerService:
         # Verify DB operations
         test_await db.get.assert_called_once_with(DbServer, 1)
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
 
         # Verify properties were updated
         assert mock_server.is_active is False

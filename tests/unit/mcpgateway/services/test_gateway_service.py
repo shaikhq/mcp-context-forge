@@ -76,7 +76,7 @@ class TestGatewayService:
         test_db.execute = Mock(return_value=mock_scalar)
         test_db.add = Mock()
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Set up gateway service methods
         gateway_service._notify_gateway_added = AsyncMock()
@@ -100,7 +100,7 @@ class TestGatewayService:
         # Verify DB operations
         test_db.add.assert_called_once()
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
 
         # Verify gateway initialization
         gateway_service._initialize_gateway.assert_called_once_with("http://example.com/gateway")
@@ -237,7 +237,7 @@ class TestGatewayService:
         test_db.execute = Mock(return_value=mock_scalar)
 
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Set up gateway service methods
         gateway_service._notify_gateway_updated = AsyncMock()
@@ -260,7 +260,7 @@ class TestGatewayService:
 
         # Verify DB operations
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
 
         # Verify gateway properties were updated
         assert mock_gateway.name == "updated_gateway"
@@ -335,7 +335,7 @@ class TestGatewayService:
         # Mock DB get to return gateway
         test_await db.get = Mock(return_value=mock_gateway)
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Set up service methods
         gateway_service._notify_gateway_activated = AsyncMock()
@@ -361,7 +361,7 @@ class TestGatewayService:
         # Verify DB operations
         test_await db.get.assert_called_once_with(DbGateway, 1)
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
 
         # Verify properties were updated
         assert mock_gateway.is_active is False

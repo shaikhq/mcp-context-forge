@@ -74,7 +74,7 @@ class TestPromptService:
         test_db.execute = Mock(return_value=mock_scalar)
         test_db.add = Mock()
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Set up prompt service methods
         prompt_service._notify_prompt_added = AsyncMock()
@@ -114,7 +114,7 @@ class TestPromptService:
         # Verify DB operations
         test_db.add.assert_called_once()
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
 
         # Verify validation and notification
         prompt_service._validate_template.assert_called_once_with(prompt_create.template)
@@ -303,7 +303,7 @@ class TestPromptService:
         test_db.execute = Mock(return_value=mock_scalar)
 
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Set up prompt service methods
         prompt_service._notify_prompt_updated = AsyncMock()
@@ -345,7 +345,7 @@ class TestPromptService:
 
         # Verify DB operations
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
 
         # Verify prompt properties were updated
         assert mock_prompt.name == "updated_prompt"
@@ -466,7 +466,7 @@ class TestPromptService:
         # Mock DB to return prompt
         test_await db.get = Mock(return_value=mock_prompt)
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Set up prompt service methods
         prompt_service._notify_prompt_activated = AsyncMock()
@@ -500,7 +500,7 @@ class TestPromptService:
         # Verify DB operations
         test_await db.get.assert_called_once_with(DbPrompt, 1)
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
 
         # Verify properties were updated
         assert mock_prompt.is_active is False

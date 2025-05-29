@@ -18,6 +18,7 @@ and to record tool execution metrics.
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+import logging
 
 import jsonschema
 from sqlalchemy import (
@@ -31,7 +32,6 @@ from sqlalchemy import (
     String,
     Table,
     Text,
-    create_engine,
     func,
     select,
 )
@@ -50,8 +50,10 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from mcpgateway.config import settings
 from mcpgateway.types import ResourceContent
 
+logger = logging.getLogger(__name__)
+
 # Create SQLAlchemy engine with connection pooling
-engine = create_engine(
+engine = create_async_engine(
     settings.database_url,
     pool_size=settings.db_pool_size,
     max_overflow=settings.db_max_overflow,
@@ -1061,6 +1063,7 @@ async def init_db():
             # await conn.run_sync(Base.metadata.drop_all)
             
             # This will create all tables
-            await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(Base.metadata.create_all, checkfirst=True)
     except SQLAlchemyError as e:
+        logger.error(f"Failed to initialize database: {str(e)}", exc_info=True)
         raise Exception(f"Failed to initialize database: {str(e)}")

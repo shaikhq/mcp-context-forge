@@ -91,7 +91,7 @@ class TestResourceService:
         test_db.execute = Mock(return_value=mock_scalar)
         test_db.add = Mock()
         test_await db.commit = Mock()
-        test_await df.refresh = Mock()
+        test_await db.refresh = Mock()
 
         # Set up mock for resource_service methods
         resource_service._is_valid_uri = Mock(return_value=True)
@@ -134,7 +134,7 @@ class TestResourceService:
         # Verify method calls
         test_db.add.assert_called_once()
         test_await db.commit.assert_called_once()
-        test_await df.refresh.assert_called_once()
+        test_await db.refresh.assert_called_once()
         resource_service._notify_resource_added.assert_called_once()
 
     @pytest.mark.asyncio

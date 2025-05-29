@@ -195,3 +195,4 @@ downloads/
 db_path/
 
 .continue
+mcb.db

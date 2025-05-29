@@ -210,7 +210,7 @@ class ServerService:
 
             # Commit the new record and refresh.
             await db.commit()
-            await df.refresh(db_server)
+            await db.refresh(db_server)
             # Force load the relationship attributes.
             _ = db_server.tools, db_server.resources, db_server.prompts
 
@@ -352,7 +352,7 @@ class ServerService:
 
             server.updated_at = datetime.utcnow()
             await db.commit()
-            await df.refresh(server)
+            await db.refresh(server)
             # Force loading relationships
             _ = server.tools, server.resources, server.prompts
 
@@ -402,7 +402,7 @@ class ServerService:
                 server.is_active = activate
                 server.updated_at = datetime.utcnow()
                 await db.commit()
-                await df.refresh(server)
+                await db.refresh(server)
                 if activate:
                     await self._notify_server_activated(server)
                 else:
