@@ -713,7 +713,10 @@ class SessionRegistry(SessionBackend):
             method = message["method"]
             params = message.get("params", {})
             req_id = message["id"]
-            db = next(get_db())
+            
+            db_gen = get_db()
+            db_session = await anext(db_gen)
+
             if method == "initialize":
                 init_result = await self.handle_initialize_logic(params)
                 response = {
@@ -744,21 +747,21 @@ class SessionRegistry(SessionBackend):
                     )
             elif method == "tools/list":
                 if server_id:
-                    tools = await tool_service.list_server_tools(db, server_id=server_id)
+                    tools = await tool_service.list_server_tools(db_session, server_id=server_id)
                 else:
-                    tools = await tool_service.list_tools(db)
+                    tools = await tool_service.list_tools(db_session)
                 result = {"tools": [t.model_dump(by_alias=True, exclude_none=True) for t in tools]}
             elif method == "resources/list":
                 if server_id:
-                    resources = await resource_service.list_server_resources(db, server_id=server_id)
+                    resources = await resource_service.list_server_resources(db_session, server_id=server_id)
                 else:
-                    resources = await resource_service.list_resources(db)
+                    resources = await resource_service.list_resources(db_session)
                 result = {"resources": [r.model_dump(by_alias=True, exclude_none=True) for r in resources]}
             elif method == "prompts/list":
                 if server_id:
-                    prompts = await prompt_service.list_server_prompts(db, server_id=server_id)
+                    prompts = await prompt_service.list_server_prompts(db_session, server_id=server_id)
                 else:
-                    prompts = await prompt_service.list_prompts(db)
+                    prompts = await prompt_service.list_prompts(db_session)
                 result = {"prompts": [p.model_dump(by_alias=True, exclude_none=True) for p in prompts]}
             elif method == "ping":
                 result = {}
@@ -779,6 +782,8 @@ class SessionRegistry(SessionBackend):
                     result = rpc_response.json()
             else:
                 result = {}
+
+            await db_gen.aclose()
 
             response = {"jsonrpc": "2.0", "result": result, "id": req_id}
             logging.info(f"Sending sse message:{response}")
