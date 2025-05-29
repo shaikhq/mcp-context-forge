@@ -126,7 +126,19 @@ class GatewayService:
         """
         try:
             # Check for name conflicts (both active and inactive)
-            result = await db.execute(select(DbGateway).where(DbGateway.name == gateway.name))
+            stmt = (
+                select(DbGateway)
+                .where(DbGateway.name == gateway.name)
+                .options(
+                    selectinload(DbGateway.tools),
+                    selectinload(DbGateway.prompts),
+                    selectinload(DbGateway.resources),
+                    selectinload(DbGateway.federated_tools),
+                    selectinload(DbGateway.federated_resources),
+                    selectinload(DbGateway.federated_prompts),
+                )
+            )
+            result = await db.execute(stmt)
             existing_gateway = result.scalar_one_or_none()
 
             if existing_gateway:
@@ -153,13 +165,26 @@ class GatewayService:
             await db.refresh(db_gateway)
 
             # Update tracking
-            self._active_gateways.add(db_gateway.url)
+            self._active_gateways.add(gateway.url)
 
             # Notify subscribers
             await self._notify_gateway_added(db_gateway)
 
-            result = await db.execute(select(DbGateway).where(DbGateway.name == gateway.name))
+            stmt = (
+                select(DbGateway)
+                .where(DbGateway.name == gateway.name)
+                .options(
+                    selectinload(DbGateway.tools),
+                    selectinload(DbGateway.prompts),
+                    selectinload(DbGateway.resources),
+                    selectinload(DbGateway.federated_tools),
+                    selectinload(DbGateway.federated_resources),
+                    selectinload(DbGateway.federated_prompts),
+                )
+            )
+            result = await db.execute(stmt)
             inserted_gateway = result.scalar_one_or_none()
+
             inserted_gateway_id = inserted_gateway.id
 
             logger.info(f"Registered gateway: {gateway.name}")

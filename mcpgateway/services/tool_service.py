@@ -187,7 +187,17 @@ class ToolService:
             ToolError: For other tool registration errors.
         """
         try:
-            result = await db.execute(select(DbTool).where(DbTool.name == tool.name))
+            stmt = (
+                select(DbTool)
+                .where(DbTool.name == tool.name)
+                .options(
+                    selectinload(DbTool.gateway),
+                    selectinload(DbTool.servers),
+                    selectinload(DbTool.federated_with),
+                    selectinload(DbTool.metrics),
+                )
+            )
+            result = await db.execute(stmt)
             existing_tool = result.scalar_one_or_none()
             if existing_tool:
                 raise ToolNameConflictError(
