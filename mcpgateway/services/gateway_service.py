@@ -25,6 +25,7 @@ from mcp.client.sse import sse_client
 from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from mcpgateway.config import settings
 from mcpgateway.db import Gateway as DbGateway, AsyncSessionLocal
@@ -187,6 +188,14 @@ class GatewayService:
             List of registered gateways
         """
         query = select(DbGateway)
+        query = query.options(
+            selectinload(DbGateway.tools),
+            selectinload(DbGateway.prompts),
+            selectinload(DbGateway.resources),
+            selectinload(DbGateway.federated_tools),
+            selectinload(DbGateway.federated_resources),
+            selectinload(DbGateway.federated_prompts),
+        )
         if not include_inactive:
             query = query.where(DbGateway.is_active)
 

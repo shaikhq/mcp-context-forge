@@ -236,6 +236,7 @@ class ResourceService:
             selectinload(DbResource.servers),
             selectinload(DbResource.metrics),
             selectinload(DbResource.federated_with),
+            selectinload(DbResource.subscriptions),
         )
         if not include_inactive:
             query = query.where(DbResource.is_active)
