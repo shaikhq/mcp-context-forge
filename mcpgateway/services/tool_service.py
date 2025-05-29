@@ -299,9 +299,9 @@ class ToolService:
             select(DbTool)
             .where(DbTool.id == tool_id)
             .options(
-                selectinload(DbTool.tools),
-                selectinload(DbTool.prompts),
-                selectinload(DbTool.resources),
+                selectinload(DbTool.gateway),
+                selectinload(DbTool.servers),
+                selectinload(DbTool.federated_with),
                 selectinload(DbTool.metrics),
             )
         )
@@ -498,8 +498,20 @@ class ToolService:
             ToolNotFoundError: If tool not found.
             ToolInvocationError: If invocation fails.
         """
-        result = await db.execute(select(DbTool).where(DbTool.name == name).where(DbTool.is_active))
+        stmt = (
+            select(DbTool)
+            .where(DbTool.name == name)
+            .where(DbTool.is_active)
+            .options(
+                selectinload(DbTool.gateway),
+                selectinload(DbTool.servers),
+                selectinload(DbTool.federated_with),
+                selectinload(DbTool.metrics),
+            )
+        )
+        result = await db.execute(stmt)
         tool = result.scalar_one_or_none()
+
         if not tool:
             result = await db.execute(select(DbTool).where(DbTool.name == name).where(not_(DbTool.is_active)))
             inactive_tool = result.scalar_one_or_none()
