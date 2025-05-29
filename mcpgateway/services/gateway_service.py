@@ -403,7 +403,10 @@ class GatewayService:
                 raise GatewayNotFoundError(f"Gateway not found: {gateway_id}")
 
             # Store gateway info for notification before deletion
-            gateway_info = {"id": gateway.id, "name": gateway.name, "url": gateway.url}
+            gateway_id = gateway.id
+            gateway_name = gateway.name
+            gateway_url = gateway.url
+            gateway_info = {"id": gateway_id, "name": gateway_name, "url": gateway_url}
 
             # Remove associated tools
             try:
@@ -411,19 +414,21 @@ class GatewayService:
                 await db.execute(tool_delete_stmt)
                 logger.info(f"Deleted tools associated with gateway: {gateway.name}")
             except Exception as ex:
-                logger.warning(f"No tools found: {ex}")
+                logger.error(f"Error deleting tools: {ex}")
+                raise ex
 
             # Hard delete gateway
-            db.delete(gateway)
-            await db.commit()
+            gateway_delete_stmt = delete(DbGateway).where(DbGateway.id == gateway_id)
+            await db.execute(gateway_delete_stmt)
 
             # Update tracking
-            self._active_gateways.discard(gateway.url)
+            self._active_gateways.discard(gateway_url)
 
             # Notify subscribers
             await self._notify_gateway_deleted(gateway_info)
 
-            logger.info(f"Permanently deleted gateway: {gateway.name}")
+            await db.commit()
+            logger.info(f"Permanently deleted gateway: {gateway_name}")
 
         except Exception as e:
             await db.rollback()
