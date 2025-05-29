@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import httpx
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcpgateway.config import settings
 from mcpgateway.db import Gateway as DbGateway
@@ -72,7 +72,7 @@ class FederationManager:
         self._sync_task: Optional[asyncio.Task] = None
         self._health_task: Optional[asyncio.Task] = None
 
-    async def start(self, db: Session) -> None:
+    async def start(self, db: AsyncSession) -> None:
         """Start federation system.
 
         Args:
@@ -131,7 +131,7 @@ class FederationManager:
 
         logger.info("Federation manager stopped")
 
-    async def register_gateway(self, db: Session, url: str, name: Optional[str] = None) -> DbGateway:
+    async def register_gateway(self, db: AsyncSession, url: str, name: Optional[str] = None) -> DbGateway:
         """Register a new gateway.
 
         Args:
@@ -174,7 +174,7 @@ class FederationManager:
             db.rollback()
             raise FederationError(f"Failed to register gateway: {str(e)}")
 
-    async def unregister_gateway(self, db: Session, gateway_id: int) -> None:
+    async def unregister_gateway(self, db: AsyncSession, gateway_id: int) -> None:
         """Unregister a gateway.
 
         Args:
@@ -211,7 +211,7 @@ class FederationManager:
             db.rollback()
             raise FederationError(f"Failed to unregister gateway: {str(e)}")
 
-    async def get_gateway_tools(self, db: Session, gateway_id: int) -> List[Tool]:
+    async def get_gateway_tools(self, db: AsyncSession, gateway_id: int) -> List[Tool]:
         """Get tools provided by a gateway.
 
         Args:
@@ -236,7 +236,7 @@ class FederationManager:
         except Exception as e:
             raise FederationError(f"Failed to get tools from {gateway.name}: {str(e)}")
 
-    async def get_gateway_resources(self, db: Session, gateway_id: int) -> List[Resource]:
+    async def get_gateway_resources(self, db: AsyncSession, gateway_id: int) -> List[Resource]:
         """Get resources provided by a gateway.
 
         Args:
@@ -261,7 +261,7 @@ class FederationManager:
         except Exception as e:
             raise FederationError(f"Failed to get resources from {gateway.name}: {str(e)}")
 
-    async def get_gateway_prompts(self, db: Session, gateway_id: int) -> List[Prompt]:
+    async def get_gateway_prompts(self, db: AsyncSession, gateway_id: int) -> List[Prompt]:
         """Get prompts provided by a gateway.
 
         Args:
@@ -322,12 +322,12 @@ class FederationManager:
         except Exception as e:
             raise FederationError(f"Failed to forward request to {gateway.name}: {str(e)}")
 
-    async def _run_sync_loop(self, db: Session) -> None:
+    async def _run_sync_loop(self, db: AsyncSession) -> None:
         """
         Run periodic gateway synchronization.
 
         Args:
-            db: Session object
+            db: AsyncSession object
         """
         while True:
             try:
@@ -362,12 +362,12 @@ class FederationManager:
 
             await asyncio.sleep(settings.federation_sync_interval)
 
-    async def _run_health_loop(self, db: Session) -> None:
+    async def _run_health_loop(self, db: AsyncSession) -> None:
         """
         Run periodic gateway health checks.
 
         Args:
-            db: Session object
+            db: AsyncSession object
         """
         while True:
             try:

@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import httpx
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcpgateway.config import settings
 from mcpgateway.db import Gateway as DbGateway
@@ -77,7 +77,7 @@ class ForwardingService:
 
     async def forward_request(
         self,
-        db: Session,
+        db: AsyncSession,
         method: str,
         params: Optional[Dict[str, Any]] = None,
         target_gateway_id: Optional[int] = None,
@@ -107,7 +107,7 @@ class ForwardingService:
         except Exception as e:
             raise ForwardingError(f"Forward request failed: {str(e)}")
 
-    async def forward_tool_request(self, db: Session, tool_name: str, arguments: Dict[str, Any]) -> ToolResult:
+    async def forward_tool_request(self, db: AsyncSession, tool_name: str, arguments: Dict[str, Any]) -> ToolResult:
         """Forward a tool invocation request.
 
         Args:
@@ -148,7 +148,7 @@ class ForwardingService:
         except Exception as e:
             raise ForwardingError(f"Failed to forward tool request: {str(e)}")
 
-    async def forward_resource_request(self, db: Session, uri: str) -> Tuple[Union[str, bytes], str]:
+    async def forward_resource_request(self, db: AsyncSession, uri: str) -> Tuple[Union[str, bytes], str]:
         """Forward a resource read request.
 
         Args:
@@ -183,7 +183,7 @@ class ForwardingService:
 
     async def _forward_to_gateway(
         self,
-        db: Session,
+        db: AsyncSession,
         gateway_id: int,
         method: str,
         params: Optional[Dict[str, Any]] = None,
@@ -245,7 +245,7 @@ class ForwardingService:
         except Exception as e:
             raise ForwardingError(f"Failed to forward to {gateway.name}: {str(e)}")
 
-    async def _forward_to_all(self, db: Session, method: str, params: Optional[Dict[str, Any]] = None) -> List[Any]:
+    async def _forward_to_all(self, db: AsyncSession, method: str, params: Optional[Dict[str, Any]] = None) -> List[Any]:
         """Forward request to all active gateways.
 
         Args:
@@ -278,7 +278,7 @@ class ForwardingService:
 
         return results
 
-    async def _find_resource_gateway(self, db: Session, uri: str) -> Optional[DbGateway]:
+    async def _find_resource_gateway(self, db: AsyncSession, uri: str) -> Optional[DbGateway]:
         """Find gateway hosting a resource.
 
         Args:

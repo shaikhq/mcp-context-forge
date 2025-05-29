@@ -24,7 +24,7 @@ from mcp import ClientSession
 from mcp.client.sse import sse_client
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcpgateway.config import settings
 from mcpgateway.db import Gateway as DbGateway
@@ -109,7 +109,7 @@ class GatewayService:
         self._active_gateways.clear()
         logger.info("Gateway service shutdown complete")
 
-    async def register_gateway(self, db: Session, gateway: GatewayCreate) -> GatewayRead:
+    async def register_gateway(self, db: AsyncSession, gateway: GatewayCreate) -> GatewayRead:
         """Register a new gateway.
 
         Args:
@@ -174,7 +174,7 @@ class GatewayService:
             db.rollback()
             raise GatewayError(f"Failed to register gateway: {str(e)}")
 
-    async def list_gateways(self, db: Session, include_inactive: bool = False) -> List[GatewayRead]:
+    async def list_gateways(self, db: AsyncSession, include_inactive: bool = False) -> List[GatewayRead]:
         """List all registered gateways.
 
         Args:
@@ -192,7 +192,7 @@ class GatewayService:
         gateways = db.execute(query).scalars().all()
         return [GatewayRead.model_validate(g) for g in gateways]
 
-    async def update_gateway(self, db: Session, gateway_id: int, gateway_update: GatewayUpdate) -> GatewayRead:
+    async def update_gateway(self, db: AsyncSession, gateway_id: int, gateway_update: GatewayUpdate) -> GatewayRead:
         """Update a gateway.
 
         Args:
@@ -270,7 +270,7 @@ class GatewayService:
             db.rollback()
             raise GatewayError(f"Failed to update gateway: {str(e)}")
 
-    async def get_gateway(self, db: Session, gateway_id: int, include_inactive: bool = False) -> GatewayRead:
+    async def get_gateway(self, db: AsyncSession, gateway_id: int, include_inactive: bool = False) -> GatewayRead:
         """Get a specific gateway by ID.
 
         Args:
@@ -293,7 +293,7 @@ class GatewayService:
 
         return GatewayRead.model_validate(gateway)
 
-    async def toggle_gateway_status(self, db: Session, gateway_id: int, activate: bool) -> GatewayRead:
+    async def toggle_gateway_status(self, db: AsyncSession, gateway_id: int, activate: bool) -> GatewayRead:
         """Toggle gateway active status.
 
         Args:
@@ -372,7 +372,7 @@ class GatewayService:
         }
         await self._publish_event(event)
 
-    async def delete_gateway(self, db: Session, gateway_id: int) -> None:
+    async def delete_gateway(self, db: AsyncSession, gateway_id: int) -> None:
         """Permanently delete a gateway.
 
         Args:
@@ -478,7 +478,7 @@ class GatewayService:
         except Exception:
             return False
 
-    async def aggregate_capabilities(self, db: Session) -> Dict[str, Any]:
+    async def aggregate_capabilities(self, db: AsyncSession) -> Dict[str, Any]:
         """Aggregate capabilities from all gateways.
 
         Args:

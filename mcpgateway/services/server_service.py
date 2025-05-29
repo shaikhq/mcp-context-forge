@@ -20,7 +20,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 import httpx
 from sqlalchemy import delete, func, not_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcpgateway.config import settings
 from mcpgateway.db import Prompt as DbPrompt
@@ -135,7 +135,7 @@ class ServerService:
             "prompts": prompts or [],
         }
 
-    async def register_server(self, db: Session, server_in: ServerCreate) -> ServerRead:
+    async def register_server(self, db: AsyncSession, server_in: ServerCreate) -> ServerRead:
         """
         Register a new server in the catalog and validate that all associated items exist.
 
@@ -237,7 +237,7 @@ class ServerService:
             db.rollback()
             raise ServerError(f"Failed to register server: {str(e)}")
 
-    async def list_servers(self, db: Session, include_inactive: bool = False) -> List[ServerRead]:
+    async def list_servers(self, db: AsyncSession, include_inactive: bool = False) -> List[ServerRead]:
         """List all registered servers.
 
         Args:
@@ -253,7 +253,7 @@ class ServerService:
         servers = db.execute(query).scalars().all()
         return [self._convert_server_to_read(s) for s in servers]
 
-    async def get_server(self, db: Session, server_id: int) -> ServerRead:
+    async def get_server(self, db: AsyncSession, server_id: int) -> ServerRead:
         """Retrieve server details by ID.
 
         Args:
@@ -284,7 +284,7 @@ class ServerService:
         logger.debug(f"Server Data: {server_data}")
         return self._convert_server_to_read(server)
 
-    async def update_server(self, db: Session, server_id: int, server_update: ServerUpdate) -> ServerRead:
+    async def update_server(self, db: AsyncSession, server_id: int, server_update: ServerUpdate) -> ServerRead:
         """Update an existing server.
 
         Args:
@@ -375,7 +375,7 @@ class ServerService:
             db.rollback()
             raise ServerError(f"Failed to update server: {str(e)}")
 
-    async def toggle_server_status(self, db: Session, server_id: int, activate: bool) -> ServerRead:
+    async def toggle_server_status(self, db: AsyncSession, server_id: int, activate: bool) -> ServerRead:
         """Toggle the activation status of a server.
 
         Args:
@@ -424,7 +424,7 @@ class ServerService:
             db.rollback()
             raise ServerError(f"Failed to toggle server status: {str(e)}")
 
-    async def delete_server(self, db: Session, server_id: int) -> None:
+    async def delete_server(self, db: AsyncSession, server_id: int) -> None:
         """Permanently delete a server.
 
         Args:
@@ -578,7 +578,7 @@ class ServerService:
         await self._publish_event(event)
 
     # --- Metrics ---
-    async def aggregate_metrics(self, db: Session) -> ServerMetrics:
+    async def aggregate_metrics(self, db: AsyncSession) -> ServerMetrics:
         """
         Aggregate metrics for all server invocations across all servers.
 
@@ -613,7 +613,7 @@ class ServerService:
             last_execution_time=last_execution_time,
         )
 
-    async def reset_metrics(self, db: Session) -> None:
+    async def reset_metrics(self, db: AsyncSession) -> None:
         """
         Reset all server metrics by deleting all records from the server metrics table.
 

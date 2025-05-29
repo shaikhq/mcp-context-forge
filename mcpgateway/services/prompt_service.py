@@ -23,7 +23,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional, Set
 from jinja2 import Environment, meta, select_autoescape
 from sqlalchemy import delete, func, not_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcpgateway.db import Prompt as DbPrompt
 from mcpgateway.db import PromptMetric, server_prompt_association
@@ -150,7 +150,7 @@ class PromptService:
             },
         }
 
-    async def register_prompt(self, db: Session, prompt: PromptCreate) -> PromptRead:
+    async def register_prompt(self, db: AsyncSession, prompt: PromptCreate) -> PromptRead:
         """Register a new prompt template.
 
         Args:
@@ -220,7 +220,7 @@ class PromptService:
             db.rollback()
             raise PromptError(f"Failed to register prompt: {str(e)}")
 
-    async def list_prompts(self, db: Session, include_inactive: bool = False, cursor: Optional[str] = None) -> List[PromptRead]:
+    async def list_prompts(self, db: AsyncSession, include_inactive: bool = False, cursor: Optional[str] = None) -> List[PromptRead]:
         """
         Retrieve a list of prompt templates from the database.
 
@@ -247,7 +247,7 @@ class PromptService:
         prompts = db.execute(query).scalars().all()
         return [PromptRead.model_validate(self._convert_db_prompt(p)) for p in prompts]
 
-    async def list_server_prompts(self, db: Session, server_id: int, include_inactive: bool = False, cursor: Optional[str] = None) -> List[PromptRead]:
+    async def list_server_prompts(self, db: AsyncSession, server_id: int, include_inactive: bool = False, cursor: Optional[str] = None) -> List[PromptRead]:
         """
         Retrieve a list of prompt templates from the database.
 
@@ -275,7 +275,7 @@ class PromptService:
         prompts = db.execute(query).scalars().all()
         return [PromptRead.model_validate(self._convert_db_prompt(p)) for p in prompts]
 
-    async def get_prompt(self, db: Session, name: str, arguments: Optional[Dict[str, str]] = None) -> PromptResult:
+    async def get_prompt(self, db: AsyncSession, name: str, arguments: Optional[Dict[str, str]] = None) -> PromptResult:
         """Get a prompt template and optionally render it.
 
         Args:
@@ -319,7 +319,7 @@ class PromptService:
         except Exception as e:
             raise PromptError(f"Failed to process prompt: {str(e)}")
 
-    async def update_prompt(self, db: Session, name: str, prompt_update: PromptUpdate) -> PromptRead:
+    async def update_prompt(self, db: AsyncSession, name: str, prompt_update: PromptUpdate) -> PromptRead:
         """Update an existing prompt.
 
         Args:
@@ -385,7 +385,7 @@ class PromptService:
             db.rollback()
             raise PromptError(f"Failed to update prompt: {str(e)}")
 
-    async def toggle_prompt_status(self, db: Session, prompt_id: int, activate: bool) -> PromptRead:
+    async def toggle_prompt_status(self, db: AsyncSession, prompt_id: int, activate: bool) -> PromptRead:
         """Toggle prompt active status.
 
         Args:
@@ -420,7 +420,7 @@ class PromptService:
             raise PromptError(f"Failed to toggle prompt status: {str(e)}")
 
     # Get prompt details for admin ui
-    async def get_prompt_details(self, db: Session, name: str, include_inactive: bool = False) -> Dict[str, Any]:
+    async def get_prompt_details(self, db: AsyncSession, name: str, include_inactive: bool = False) -> Dict[str, Any]:
         """Get prompt details for admin UI.
 
         Args:
@@ -447,7 +447,7 @@ class PromptService:
         # Return the fully converted prompt including metrics
         return self._convert_db_prompt(prompt)
 
-    async def delete_prompt(self, db: Session, name: str) -> None:
+    async def delete_prompt(self, db: AsyncSession, name: str) -> None:
         """Permanently delete a registered prompt.
 
         Args:
@@ -689,7 +689,7 @@ class PromptService:
             await queue.put(event)
 
     # --- Metrics ---
-    async def aggregate_metrics(self, db: Session) -> Dict[str, Any]:
+    async def aggregate_metrics(self, db: AsyncSession) -> Dict[str, Any]:
         """
         Aggregate metrics for all prompt invocations.
 
@@ -728,7 +728,7 @@ class PromptService:
             "last_execution_time": last_time,
         }
 
-    async def reset_metrics(self, db: Session) -> None:
+    async def reset_metrics(self, db: AsyncSession) -> None:
         """
         Reset all prompt metrics by deleting all records from the prompt metrics table.
 

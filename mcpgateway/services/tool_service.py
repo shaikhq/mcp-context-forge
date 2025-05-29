@@ -26,7 +26,7 @@ from mcp import ClientSession
 from mcp.client.sse import sse_client
 from sqlalchemy import delete, func, not_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcpgateway.config import settings
 from mcpgateway.db import Gateway as DbGateway
@@ -145,7 +145,7 @@ class ToolService:
             tool_dict["auth"] = None
         return ToolRead.model_validate(tool_dict)
 
-    async def _record_tool_metric(self, db: Session, tool: DbTool, start_time: float, success: bool, error_message: Optional[str]) -> None:
+    async def _record_tool_metric(self, db: AsyncSession, tool: DbTool, start_time: float, success: bool, error_message: Optional[str]) -> None:
         """
         Records a metric for a tool invocation.
 
@@ -171,7 +171,7 @@ class ToolService:
         db.add(metric)
         db.commit()
 
-    async def register_tool(self, db: Session, tool: ToolCreate) -> ToolRead:
+    async def register_tool(self, db: AsyncSession, tool: ToolCreate) -> ToolRead:
         """Register a new tool.
 
         Args:
@@ -227,7 +227,7 @@ class ToolService:
             db.rollback()
             raise ToolError(f"Failed to register tool: {str(e)}")
 
-    async def list_tools(self, db: Session, include_inactive: bool = False, cursor: Optional[str] = None) -> List[ToolRead]:
+    async def list_tools(self, db: AsyncSession, include_inactive: bool = False, cursor: Optional[str] = None) -> List[ToolRead]:
         """
         Retrieve a list of registered tools from the database.
 
@@ -249,7 +249,7 @@ class ToolService:
         tools = db.execute(query).scalars().all()
         return [self._convert_tool_to_read(t) for t in tools]
 
-    async def list_server_tools(self, db: Session, server_id: int, include_inactive: bool = False, cursor: Optional[str] = None) -> List[ToolRead]:
+    async def list_server_tools(self, db: AsyncSession, server_id: int, include_inactive: bool = False, cursor: Optional[str] = None) -> List[ToolRead]:
         """
         Retrieve a list of registered tools from the database.
 
@@ -272,7 +272,7 @@ class ToolService:
         tools = db.execute(query).scalars().all()
         return [self._convert_tool_to_read(t) for t in tools]
 
-    async def get_tool(self, db: Session, tool_id: int) -> ToolRead:
+    async def get_tool(self, db: AsyncSession, tool_id: int) -> ToolRead:
         """Get a specific tool by ID.
 
         Args:
@@ -290,7 +290,7 @@ class ToolService:
             raise ToolNotFoundError(f"Tool not found: {tool_id}")
         return self._convert_tool_to_read(tool)
 
-    async def delete_tool(self, db: Session, tool_id: int) -> None:
+    async def delete_tool(self, db: AsyncSession, tool_id: int) -> None:
         """Permanently delete a tool from the database.
 
         Args:
@@ -314,7 +314,7 @@ class ToolService:
             db.rollback()
             raise ToolError(f"Failed to delete tool: {str(e)}")
 
-    async def toggle_tool_status(self, db: Session, tool_id: int, activate: bool) -> ToolRead:
+    async def toggle_tool_status(self, db: AsyncSession, tool_id: int, activate: bool) -> ToolRead:
         """Toggle tool active status.
 
         Args:
@@ -348,7 +348,7 @@ class ToolService:
             db.rollback()
             raise ToolError(f"Failed to toggle tool status: {str(e)}")
 
-    # async def invoke_tool(self, db: Session, name: str, arguments: Dict[str, Any]) -> ToolResult:
+    # async def invoke_tool(self, db: AsyncSession, name: str, arguments: Dict[str, Any]) -> ToolResult:
     #     """
     #     Invoke a registered tool and record execution metrics.
 
@@ -456,7 +456,7 @@ class ToolService:
     #     finally:
     #         await self._record_tool_metric(db, tool, start_time, success, error_message)
 
-    async def invoke_tool(self, db: Session, name: str, arguments: Dict[str, Any]) -> ToolResult:
+    async def invoke_tool(self, db: AsyncSession, name: str, arguments: Dict[str, Any]) -> ToolResult:
         """
         Invoke a registered tool and record execution metrics.
 
@@ -549,7 +549,7 @@ class ToolService:
         finally:
             await self._record_tool_metric(db, tool, start_time, success, error_message)
 
-    async def update_tool(self, db: Session, tool_id: int, tool_update: ToolUpdate) -> ToolRead:
+    async def update_tool(self, db: AsyncSession, tool_id: int, tool_update: ToolUpdate) -> ToolRead:
         """Update an existing tool.
 
         Args:
@@ -780,7 +780,7 @@ class ToolService:
             self._event_subscribers.remove(queue)
 
     # --- Metrics ---
-    async def aggregate_metrics(self, db: Session) -> Dict[str, Any]:
+    async def aggregate_metrics(self, db: AsyncSession) -> Dict[str, Any]:
         """
         Aggregate metrics for all tool invocations.
 
@@ -819,7 +819,7 @@ class ToolService:
             "last_execution_time": last_time,
         }
 
-    async def reset_metrics(self, db: Session, tool_id: Optional[int] = None) -> None:
+    async def reset_metrics(self, db: AsyncSession, tool_id: Optional[int] = None) -> None:
         """
         Reset metrics for tool invocations.
 

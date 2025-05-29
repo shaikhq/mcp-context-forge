@@ -25,7 +25,7 @@ from urllib.parse import urlparse
 import parse
 from sqlalchemy import delete, func, not_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcpgateway.db import Resource as DbResource
 from mcpgateway.db import ResourceMetric
@@ -141,7 +141,7 @@ class ResourceService:
         }
         return ResourceRead.model_validate(resource_dict)
 
-    async def register_resource(self, db: Session, resource: ResourceCreate) -> ResourceRead:
+    async def register_resource(self, db: AsyncSession, resource: ResourceCreate) -> ResourceRead:
         """Register a new resource.
 
         Args:
@@ -209,7 +209,7 @@ class ResourceService:
             db.rollback()
             raise ResourceError(f"Failed to register resource: {str(e)}")
 
-    async def list_resources(self, db: Session, include_inactive: bool = False) -> List[ResourceRead]:
+    async def list_resources(self, db: AsyncSession, include_inactive: bool = False) -> List[ResourceRead]:
         """
         Retrieve a list of registered resources from the database.
 
@@ -235,7 +235,7 @@ class ResourceService:
         resources = db.execute(query).scalars().all()
         return [self._convert_resource_to_read(r) for r in resources]
 
-    async def list_server_resources(self, db: Session, server_id: int, include_inactive: bool = False) -> List[ResourceRead]:
+    async def list_server_resources(self, db: AsyncSession, server_id: int, include_inactive: bool = False) -> List[ResourceRead]:
         """
         Retrieve a list of registered resources from the database.
 
@@ -262,7 +262,7 @@ class ResourceService:
         resources = db.execute(query).scalars().all()
         return [self._convert_resource_to_read(r) for r in resources]
 
-    async def read_resource(self, db: Session, uri: str) -> ResourceContent:
+    async def read_resource(self, db: AsyncSession, uri: str) -> ResourceContent:
         """Read a resource's content.
 
         Args:
@@ -294,7 +294,7 @@ class ResourceService:
         # Return content
         return resource.content
 
-    async def toggle_resource_status(self, db: Session, resource_id: int, activate: bool) -> ResourceRead:
+    async def toggle_resource_status(self, db: AsyncSession, resource_id: int, activate: bool) -> ResourceRead:
         """Toggle resource active status.
 
         Args:
@@ -335,7 +335,7 @@ class ResourceService:
             db.rollback()
             raise ResourceError(f"Failed to toggle resource status: {str(e)}")
 
-    async def subscribe_resource(self, db: Session, subscription: ResourceSubscription) -> None:
+    async def subscribe_resource(self, db: AsyncSession, subscription: ResourceSubscription) -> None:
         """Subscribe to resource updates.
 
         Args:
@@ -370,7 +370,7 @@ class ResourceService:
             db.rollback()
             raise ResourceError(f"Failed to subscribe: {str(e)}")
 
-    async def unsubscribe_resource(self, db: Session, subscription: ResourceSubscription) -> None:
+    async def unsubscribe_resource(self, db: AsyncSession, subscription: ResourceSubscription) -> None:
         """Unsubscribe from resource updates.
 
         Args:
@@ -394,7 +394,7 @@ class ResourceService:
             db.rollback()
             logger.error(f"Failed to unsubscribe: {str(e)}")
 
-    async def update_resource(self, db: Session, uri: str, resource_update: ResourceUpdate) -> ResourceRead:
+    async def update_resource(self, db: AsyncSession, uri: str, resource_update: ResourceUpdate) -> ResourceRead:
         """Update a resource.
 
         Args:
@@ -460,7 +460,7 @@ class ResourceService:
                 raise e
             raise ResourceError(f"Failed to update resource: {str(e)}")
 
-    async def delete_resource(self, db: Session, uri: str) -> None:
+    async def delete_resource(self, db: AsyncSession, uri: str) -> None:
         """Permanently delete a resource.
 
         Args:
@@ -506,7 +506,7 @@ class ResourceService:
             db.rollback()
             raise ResourceError(f"Failed to delete resource: {str(e)}")
 
-    async def get_resource_by_uri(self, db: Session, uri: str, include_inactive: bool = False) -> ResourceRead:
+    async def get_resource_by_uri(self, db: AsyncSession, uri: str, include_inactive: bool = False) -> ResourceRead:
         """Get resource by URI.
 
         Args:
@@ -804,7 +804,7 @@ class ResourceService:
                 await queue.put(event)
 
     # --- Resource templates ---
-    async def list_resource_templates(self, db: Session, include_inactive: bool = False) -> List[ResourceTemplate]:
+    async def list_resource_templates(self, db: AsyncSession, include_inactive: bool = False) -> List[ResourceTemplate]:
         """
         Retrieve a list of resource templates from the database.
 
@@ -829,7 +829,7 @@ class ResourceService:
         return [ResourceTemplate.model_validate(t) for t in templates]
 
     # --- Metrics ---
-    async def aggregate_metrics(self, db: Session) -> ResourceMetrics:
+    async def aggregate_metrics(self, db: AsyncSession) -> ResourceMetrics:
         """
         Aggregate metrics for all resource invocations across all resources.
 
@@ -864,7 +864,7 @@ class ResourceService:
             last_execution_time=last_execution_time,
         )
 
-    async def reset_metrics(self, db: Session) -> None:
+    async def reset_metrics(self, db: AsyncSession) -> None:
         """
         Reset all resource metrics by deleting all records from the resource metrics table.
 

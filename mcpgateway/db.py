@@ -45,6 +45,7 @@ from sqlalchemy.orm import (
     relationship,
     sessionmaker,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcpgateway.config import settings
 from mcpgateway.types import ResourceContent
@@ -1022,18 +1023,28 @@ listen(Prompt, "before_insert", validate_prompt_schema)
 listen(Prompt, "before_update", validate_prompt_schema)
 
 
-def get_db():
+engine = create_async_engine(settings.database_url, echo=True)
+AsyncSessionLocal = sessionmaker(
+    autocommit=False, autoflush=False, bind=engine, class_=AsyncSession
+)
+
+
+# Database dependency
+async def get_db() -> AsyncSession:
     """
-    Dependency to get database session.
+    Dependency function to provide an asynchronous database session.
 
     Yields:
-        SessionLocal: A SQLAlchemy database session.
+        AsyncSession: A SQLAlchemy async session object for interacting with the database.
+
+    Ensures:
+        The database session is closed after the request completes, even in the case of an exception.
     """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    async with AsyncSessionLocal() as db:
+        try:
+            yield db
+        finally:
+            await db.close()
 
 
 # Create all tables

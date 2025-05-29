@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcpgateway.config import settings
 from mcpgateway.db import get_db
@@ -82,7 +82,7 @@ admin_router = APIRouter(prefix="/admin", tags=["Admin UI"])
 @admin_router.get("/servers", response_model=List[ServerRead])
 async def admin_list_servers(
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> List[ServerRead]:
     """
@@ -102,7 +102,7 @@ async def admin_list_servers(
 
 
 @admin_router.get("/servers/{server_id}", response_model=ServerRead)
-async def admin_get_server(server_id: int, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> ServerRead:
+async def admin_get_server(server_id: int, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> ServerRead:
     """
     Retrieve server details for the admin UI.
 
@@ -126,7 +126,7 @@ async def admin_get_server(server_id: int, db: Session = Depends(get_db), user: 
 
 
 @admin_router.post("/servers", response_model=ServerRead)
-async def admin_add_server(request: Request, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
+async def admin_add_server(request: Request, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
     """
     Add a new server via the admin UI.
 
@@ -176,7 +176,7 @@ async def admin_add_server(request: Request, db: Session = Depends(get_db), user
 async def admin_edit_server(
     server_id: int,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> RedirectResponse:
     """
@@ -229,7 +229,7 @@ async def admin_edit_server(
 async def admin_toggle_server(
     server_id: int,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> RedirectResponse:
     """
@@ -263,7 +263,7 @@ async def admin_toggle_server(
 
 
 @admin_router.post("/servers/{server_id}/delete")
-async def admin_delete_server(server_id: int, request: Request, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
+async def admin_delete_server(server_id: int, request: Request, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
     """
     Delete a server via the admin UI.
 
@@ -293,7 +293,7 @@ async def admin_delete_server(server_id: int, request: Request, db: Session = De
 @admin_router.get("/resources", response_model=List[ResourceRead])
 async def admin_list_resources(
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> List[ResourceRead]:
     """
@@ -319,7 +319,7 @@ async def admin_list_resources(
 @admin_router.get("/prompts", response_model=List[PromptRead])
 async def admin_list_prompts(
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> List[PromptRead]:
     """
@@ -345,7 +345,7 @@ async def admin_list_prompts(
 @admin_router.get("/gateways", response_model=List[GatewayRead])
 async def admin_list_gateways(
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> List[GatewayRead]:
     """
@@ -372,7 +372,7 @@ async def admin_list_gateways(
 async def admin_toggle_gateway(
     gateway_id: int,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> RedirectResponse:
     """
@@ -408,7 +408,7 @@ async def admin_toggle_gateway(
 async def admin_ui(
     request: Request,
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_basic_auth),
     jwt_token: str = Depends(get_jwt_token),
 ) -> HTMLResponse:
@@ -462,7 +462,7 @@ async def admin_ui(
 @admin_router.get("/tools", response_model=List[ToolRead])
 async def admin_list_tools(
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> List[ToolRead]:
     """
@@ -486,7 +486,7 @@ async def admin_list_tools(
 
 
 @admin_router.get("/tools/{tool_id}", response_model=ToolRead)
-async def admin_get_tool(tool_id: int, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> ToolRead:
+async def admin_get_tool(tool_id: int, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> ToolRead:
     """
     Retrieve specific tool details for the admin UI.
 
@@ -511,7 +511,7 @@ async def admin_get_tool(tool_id: int, db: Session = Depends(get_db), user: str 
 @admin_router.post("/tools")
 async def admin_add_tool(
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> JSONResponse:
     """
@@ -585,7 +585,7 @@ async def admin_add_tool(
 async def admin_edit_tool(
     tool_id: int,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> RedirectResponse:
     """
@@ -653,7 +653,7 @@ async def admin_edit_tool(
 
 
 @admin_router.post("/tools/{tool_id}/delete")
-async def admin_delete_tool(tool_id: int, request: Request, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
+async def admin_delete_tool(tool_id: int, request: Request, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
     """
     Delete a tool via the admin UI.
 
@@ -682,7 +682,7 @@ async def admin_delete_tool(tool_id: int, request: Request, db: Session = Depend
 async def admin_toggle_tool(
     tool_id: int,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> RedirectResponse:
     """
@@ -716,7 +716,7 @@ async def admin_toggle_tool(
 
 
 @admin_router.get("/gateways/{gateway_id}", response_model=GatewayRead)
-async def admin_get_gateway(gateway_id: int, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> GatewayRead:
+async def admin_get_gateway(gateway_id: int, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> GatewayRead:
     """Get gateway details for the admin UI.
 
     Args:
@@ -733,7 +733,7 @@ async def admin_get_gateway(gateway_id: int, db: Session = Depends(get_db), user
 
 
 @admin_router.post("/gateways")
-async def admin_add_gateway(request: Request, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
+async def admin_add_gateway(request: Request, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
     """Add a gateway via the admin UI.
 
     Expects form fields:
@@ -772,7 +772,7 @@ async def admin_add_gateway(request: Request, db: Session = Depends(get_db), use
 async def admin_edit_gateway(
     gateway_id: int,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> RedirectResponse:
     """Edit a gateway via the admin UI.
@@ -811,7 +811,7 @@ async def admin_edit_gateway(
 
 
 @admin_router.post("/gateways/{gateway_id}/delete")
-async def admin_delete_gateway(gateway_id: int, request: Request, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
+async def admin_delete_gateway(gateway_id: int, request: Request, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
     """
     Delete a gateway via the admin UI.
 
@@ -837,7 +837,7 @@ async def admin_delete_gateway(gateway_id: int, request: Request, db: Session = 
 
 
 @admin_router.get("/resources/{uri:path}")
-async def admin_get_resource(uri: str, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, Any]:
+async def admin_get_resource(uri: str, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, Any]:
     """Get resource details for the admin UI.
 
     Args:
@@ -855,7 +855,7 @@ async def admin_get_resource(uri: str, db: Session = Depends(get_db), user: str 
 
 
 @admin_router.post("/resources")
-async def admin_add_resource(request: Request, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
+async def admin_add_resource(request: Request, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
     """Add a resource via the admin UI.
 
     Expects form fields:
@@ -893,7 +893,7 @@ async def admin_add_resource(request: Request, db: Session = Depends(get_db), us
 async def admin_edit_resource(
     uri: str,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> RedirectResponse:
     """Edit a resource via the admin UI.
@@ -928,7 +928,7 @@ async def admin_edit_resource(
 
 
 @admin_router.post("/resources/{uri:path}/delete")
-async def admin_delete_resource(uri: str, request: Request, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
+async def admin_delete_resource(uri: str, request: Request, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
     """
     Delete a resource via the admin UI.
 
@@ -957,7 +957,7 @@ async def admin_delete_resource(uri: str, request: Request, db: Session = Depend
 async def admin_toggle_resource(
     resource_id: int,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> RedirectResponse:
     """
@@ -991,7 +991,7 @@ async def admin_toggle_resource(
 
 
 @admin_router.get("/prompts/{name}")
-async def admin_get_prompt(name: str, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, Any]:
+async def admin_get_prompt(name: str, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, Any]:
     """Get prompt details for the admin UI.
 
     Args:
@@ -1010,7 +1010,7 @@ async def admin_get_prompt(name: str, db: Session = Depends(get_db), user: str =
 
 
 @admin_router.post("/prompts")
-async def admin_add_prompt(request: Request, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
+async def admin_add_prompt(request: Request, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
     """Add a prompt via the admin UI.
 
     Expects form fields:
@@ -1047,7 +1047,7 @@ async def admin_add_prompt(request: Request, db: Session = Depends(get_db), user
 async def admin_edit_prompt(
     name: str,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> RedirectResponse:
     """Edit a prompt via the admin UI.
@@ -1084,7 +1084,7 @@ async def admin_edit_prompt(
 
 
 @admin_router.post("/prompts/{name}/delete")
-async def admin_delete_prompt(name: str, request: Request, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
+async def admin_delete_prompt(name: str, request: Request, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> RedirectResponse:
     """
     Delete a prompt via the admin UI.
 
@@ -1113,7 +1113,7 @@ async def admin_delete_prompt(name: str, request: Request, db: Session = Depends
 async def admin_toggle_prompt(
     prompt_id: int,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> RedirectResponse:
     """
@@ -1202,7 +1202,7 @@ MetricsDict = Dict[str, Union[ToolMetrics, ResourceMetrics, ServerMetrics, Promp
 
 @admin_router.get("/metrics", response_model=MetricsDict)
 async def admin_get_metrics(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> MetricsDict:
     """
@@ -1239,7 +1239,7 @@ async def admin_get_metrics(
 
 
 @admin_router.post("/metrics/reset", response_model=Dict[str, object])
-async def admin_reset_metrics(db: Session = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, object]:
+async def admin_reset_metrics(db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, object]:
     """
     Reset all metrics for tools, resources, servers, and prompts.
     Each service must implement its own reset_metrics method.

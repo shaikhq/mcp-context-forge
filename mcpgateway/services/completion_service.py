@@ -13,7 +13,7 @@ import logging
 from typing import Any, Dict, List
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcpgateway.db import Prompt as DbPrompt
 from mcpgateway.db import Resource as DbResource
@@ -48,7 +48,7 @@ class CompletionService:
         logger.info("Shutting down completion service")
         self._custom_completions.clear()
 
-    async def handle_completion(self, db: Session, request: Dict[str, Any]) -> CompleteResult:
+    async def handle_completion(self, db: AsyncSession, request: Dict[str, Any]) -> CompleteResult:
         """Handle completion request.
 
         Args:
@@ -86,7 +86,7 @@ class CompletionService:
             logger.error(f"Completion error: {e}")
             raise CompletionError(str(e))
 
-    async def _complete_prompt_argument(self, db: Session, ref: Dict[str, Any], arg_name: str, arg_value: str) -> CompleteResult:
+    async def _complete_prompt_argument(self, db: AsyncSession, ref: Dict[str, Any], arg_name: str, arg_value: str) -> CompleteResult:
         """Complete prompt argument value.
 
         Args:
@@ -146,7 +146,7 @@ class CompletionService:
         # No completions available
         return CompleteResult(completion={"values": [], "total": 0, "hasMore": False})
 
-    async def _complete_resource_uri(self, db: Session, ref: Dict[str, Any], arg_value: str) -> CompleteResult:
+    async def _complete_resource_uri(self, db: AsyncSession, ref: Dict[str, Any], arg_value: str) -> CompleteResult:
         """Complete resource URI.
 
         Args:

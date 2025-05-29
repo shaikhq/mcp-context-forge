@@ -49,14 +49,14 @@ from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware
 
 # Import the admin routes from the new module
 from mcpgateway.admin import admin_router
 from mcpgateway.cache import ResourceCache, SessionRegistry
 from mcpgateway.config import jsonpath_modifier, settings
-from mcpgateway.db import Base, SessionLocal, engine
+from mcpgateway.db import Base, SessionLocal, engine, get_db
 from mcpgateway.handlers.sampling import SamplingHandler
 from mcpgateway.schemas import (
     GatewayCreate,
@@ -232,24 +232,6 @@ metrics_router = APIRouter(prefix="/metrics", tags=["Metrics"])
 # Basic Auth setup
 
 
-# Database dependency
-def get_db():
-    """
-    Dependency function to provide a database session.
-
-    Yields:
-        Session: A SQLAlchemy session object for interacting with the database.
-
-    Ensures:
-        The database session is closed after the request completes, even in the case of an exception.
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 def require_api_key(api_key: str) -> None:
     """
     Validates the provided API key.
@@ -386,7 +368,7 @@ async def handle_notification(request: Request, user: str = Depends(require_auth
 
 
 @protocol_router.post("/completion/complete")
-async def handle_completion(request: Request, db: Session = Depends(get_db), user: str = Depends(require_auth)):
+async def handle_completion(request: Request, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)):
     """
     Handles the completion of tasks by processing a completion request.
 
@@ -404,7 +386,7 @@ async def handle_completion(request: Request, db: Session = Depends(get_db), use
 
 
 @protocol_router.post("/sampling/createMessage")
-async def handle_sampling(request: Request, db: Session = Depends(get_db), user: str = Depends(require_auth)):
+async def handle_sampling(request: Request, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)):
     """
     Handles the creation of a new message for sampling.
 
@@ -428,7 +410,7 @@ async def handle_sampling(request: Request, db: Session = Depends(get_db), user:
 @server_router.get("/", response_model=List[ServerRead])
 async def list_servers(
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> List[ServerRead]:
     """
@@ -447,7 +429,7 @@ async def list_servers(
 
 
 @server_router.get("/{server_id}", response_model=ServerRead)
-async def get_server(server_id: int, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> ServerRead:
+async def get_server(server_id: int, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> ServerRead:
     """
     Retrieves a server by its ID.
 
@@ -472,7 +454,7 @@ async def get_server(server_id: int, db: Session = Depends(get_db), user: str = 
 @server_router.post("/", response_model=ServerRead, status_code=201)
 async def create_server(
     server: ServerCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> ServerRead:
     """
@@ -502,7 +484,7 @@ async def create_server(
 async def update_server(
     server_id: int,
     server: ServerUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> ServerRead:
     """
@@ -535,7 +517,7 @@ async def update_server(
 async def toggle_server_status(
     server_id: int,
     activate: bool = True,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> ServerRead:
     """
@@ -563,7 +545,7 @@ async def toggle_server_status(
 
 
 @server_router.delete("/{server_id}", response_model=Dict[str, str])
-async def delete_server(server_id: int, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, str]:
+async def delete_server(server_id: int, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, str]:
     """
     Deletes a server by its ID.
 
@@ -673,7 +655,7 @@ async def message_endpoint(request: Request, server_id: int, user: str = Depends
 async def server_get_tools(
     server_id: int,
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> List[ToolRead]:
     """
@@ -701,7 +683,7 @@ async def server_get_tools(
 async def server_get_resources(
     server_id: int,
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> List[ResourceRead]:
     """
@@ -729,7 +711,7 @@ async def server_get_resources(
 async def server_get_prompts(
     server_id: int,
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> List[PromptRead]:
     """
@@ -761,7 +743,7 @@ async def server_get_prompts(
 async def list_tools(
     cursor: Optional[str] = None,  # Add this parameter
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     apijsonpath: JsonPathModifier = Body(None),
     _: str = Depends(require_auth),
 ) -> Union[List[ToolRead], List[Dict], Dict]:
@@ -791,7 +773,7 @@ async def list_tools(
 
 @tool_router.post("", response_model=ToolRead)
 @tool_router.post("/", response_model=ToolRead)
-async def create_tool(tool: ToolCreate, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> ToolRead:
+async def create_tool(tool: ToolCreate, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> ToolRead:
     """
     Creates a new tool in the system.
 
@@ -823,7 +805,7 @@ async def create_tool(tool: ToolCreate, db: Session = Depends(get_db), user: str
 @tool_router.get("/{tool_id}", response_model=Union[ToolRead, Dict])
 async def get_tool(
     tool_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
     apijsonpath: JsonPathModifier = Body(None),
 ) -> Union[ToolRead, Dict]:
@@ -860,7 +842,7 @@ async def get_tool(
 async def update_tool(
     tool_id: int,
     tool: ToolUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> ToolRead:
     """
@@ -886,7 +868,7 @@ async def update_tool(
 
 
 @tool_router.delete("/{tool_id}")
-async def delete_tool(tool_id: int, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, str]:
+async def delete_tool(tool_id: int, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, str]:
     """
     Permanently deletes a tool by ID.
 
@@ -913,7 +895,7 @@ async def delete_tool(tool_id: int, db: Session = Depends(get_db), user: str = D
 async def toggle_tool_status(
     tool_id: int,
     activate: bool = True,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> Dict[str, Any]:
     """
@@ -949,7 +931,7 @@ async def toggle_tool_status(
 # --- Resource templates endpoint - MUST come before variable paths ---
 @resource_router.get("/templates/list", response_model=ListResourceTemplatesResult)
 async def list_resource_templates(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> ListResourceTemplatesResult:
     """
@@ -972,7 +954,7 @@ async def list_resource_templates(
 async def toggle_resource_status(
     resource_id: int,
     activate: bool = True,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> Dict[str, Any]:
     """
@@ -1007,7 +989,7 @@ async def toggle_resource_status(
 async def list_resources(
     cursor: Optional[str] = None,  # Add this parameter
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> List[ResourceRead]:
     """
@@ -1035,7 +1017,7 @@ async def list_resources(
 @resource_router.post("/", response_model=ResourceRead)
 async def create_resource(
     resource: ResourceCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> ResourceRead:
     """
@@ -1063,7 +1045,7 @@ async def create_resource(
 
 
 @resource_router.get("/{uri:path}")
-async def read_resource(uri: str, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> ResourceContent:
+async def read_resource(uri: str, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> ResourceContent:
     """
     Read a resource by its URI.
 
@@ -1094,7 +1076,7 @@ async def read_resource(uri: str, db: Session = Depends(get_db), user: str = Dep
 async def update_resource(
     uri: str,
     resource: ResourceUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> ResourceRead:
     """
@@ -1122,7 +1104,7 @@ async def update_resource(
 
 
 @resource_router.delete("/{uri:path}")
-async def delete_resource(uri: str, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, str]:
+async def delete_resource(uri: str, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, str]:
     """
     Delete a resource by its URI.
 
@@ -1171,7 +1153,7 @@ async def subscribe_resource(uri: str, user: str = Depends(require_auth)) -> Str
 async def toggle_prompt_status(
     prompt_id: int,
     activate: bool = True,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> Dict[str, Any]:
     """
@@ -1206,7 +1188,7 @@ async def toggle_prompt_status(
 async def list_prompts(
     cursor: Optional[str] = None,
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> List[PromptRead]:
     """
@@ -1228,7 +1210,7 @@ async def list_prompts(
 @prompt_router.post("/", response_model=PromptRead)
 async def create_prompt(
     prompt: PromptCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> PromptRead:
     """
@@ -1260,7 +1242,7 @@ async def create_prompt(
 async def get_prompt(
     name: str,
     args: Dict[str, str] = Body({}),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> Any:
     """Get a prompt by name with arguments.
@@ -1285,7 +1267,7 @@ async def get_prompt(
 @prompt_router.get("/{name}")
 async def get_prompt_no_args(
     name: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> Any:
     """Get a prompt by name without arguments.
@@ -1308,7 +1290,7 @@ async def get_prompt_no_args(
 async def update_prompt(
     name: str,
     prompt: PromptUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> PromptRead:
     """
@@ -1337,7 +1319,7 @@ async def update_prompt(
 
 
 @prompt_router.delete("/{name}")
-async def delete_prompt(name: str, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, str]:
+async def delete_prompt(name: str, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, str]:
     """
     Delete a prompt by name.
 
@@ -1366,7 +1348,7 @@ async def delete_prompt(name: str, db: Session = Depends(get_db), user: str = De
 async def toggle_gateway_status(
     gateway_id: int,
     activate: bool = True,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> Dict[str, Any]:
     """
@@ -1404,7 +1386,7 @@ async def toggle_gateway_status(
 @gateway_router.get("/", response_model=List[GatewayRead])
 async def list_gateways(
     include_inactive: bool = False,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> List[GatewayRead]:
     """
@@ -1426,7 +1408,7 @@ async def list_gateways(
 @gateway_router.post("/", response_model=GatewayRead)
 async def register_gateway(
     gateway: GatewayCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> GatewayRead:
     """
@@ -1445,7 +1427,7 @@ async def register_gateway(
 
 
 @gateway_router.get("/{gateway_id}", response_model=GatewayRead)
-async def get_gateway(gateway_id: int, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> GatewayRead:
+async def get_gateway(gateway_id: int, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> GatewayRead:
     """
     Retrieve a gateway by ID.
 
@@ -1465,7 +1447,7 @@ async def get_gateway(gateway_id: int, db: Session = Depends(get_db), user: str 
 async def update_gateway(
     gateway_id: int,
     gateway: GatewayUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: str = Depends(require_auth),
 ) -> GatewayRead:
     """
@@ -1485,7 +1467,7 @@ async def update_gateway(
 
 
 @gateway_router.delete("/{gateway_id}")
-async def delete_gateway(gateway_id: int, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, str]:
+async def delete_gateway(gateway_id: int, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> Dict[str, str]:
     """
     Delete a gateway by ID.
 
@@ -1584,7 +1566,7 @@ async def subscribe_roots_changes(
 ##################
 @utility_router.post("/rpc/")
 @utility_router.post("/rpc")
-async def handle_rpc(request: Request, db: Session = Depends(get_db), user: str = Depends(require_auth)):  # revert this back
+async def handle_rpc(request: Request, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)):  # revert this back
     """Handle RPC requests.
 
     Args:
@@ -1817,7 +1799,7 @@ async def set_log_level(request: Request, user: str = Depends(require_auth)) -> 
 # Metrics          #
 ####################
 @metrics_router.get("", response_model=dict)
-async def get_metrics(db: Session = Depends(get_db), user: str = Depends(require_auth)) -> dict:
+async def get_metrics(db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> dict:
     """
     Retrieve aggregated metrics for all entity types (Tools, Resources, Servers, Prompts).
 
@@ -1842,7 +1824,7 @@ async def get_metrics(db: Session = Depends(get_db), user: str = Depends(require
 
 
 @metrics_router.post("/reset", response_model=dict)
-async def reset_metrics(entity: Optional[str] = None, entity_id: Optional[int] = None, db: Session = Depends(get_db), user: str = Depends(require_auth)) -> dict:
+async def reset_metrics(entity: Optional[str] = None, entity_id: Optional[int] = None, db: AsyncSession = Depends(get_db), user: str = Depends(require_auth)) -> dict:
     """
     Reset metrics for a specific entity type and optionally a specific entity ID,
     or perform a global reset if no entity is specified.
@@ -1883,7 +1865,7 @@ async def reset_metrics(entity: Optional[str] = None, entity_id: Optional[int] =
 # Healthcheck      #
 ####################
 @app.get("/health")
-async def healthcheck(db: Session = Depends(get_db)):
+async def healthcheck(db: AsyncSession = Depends(get_db)):
     """
     Perform a basic health check to verify database connectivity.
 

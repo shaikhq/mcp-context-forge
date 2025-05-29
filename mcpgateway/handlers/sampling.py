@@ -12,7 +12,7 @@ It handles model selection, sampling preferences, and message generation.
 import logging
 from typing import Any, Dict, List
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mcpgateway.types import CreateMessageResult, ModelPreferences, Role, TextContent
 
@@ -51,7 +51,7 @@ class SamplingHandler:
         """Shutdown sampling handler."""
         logger.info("Shutting down sampling handler")
 
-    async def create_message(self, db: Session, request: Dict[str, Any]) -> CreateMessageResult:
+    async def create_message(self, db: AsyncSession, request: Dict[str, Any]) -> CreateMessageResult:
         """Create message from sampling request.
 
         Args:
@@ -146,7 +146,7 @@ class SamplingHandler:
 
         return best_model
 
-    async def _add_context(self, _db: Session, messages: List[Dict[str, Any]], _context_type: str) -> List[Dict[str, Any]]:
+    async def _add_context(self, _db: AsyncSession, messages: List[Dict[str, Any]], _context_type: str) -> List[Dict[str, Any]]:
         """Add context to messages.
 
         Args:
