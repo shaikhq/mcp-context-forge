@@ -295,7 +295,19 @@ class ToolService:
         Raises:
             ToolNotFoundError: If tool not found.
         """
-        tool = await db.get(DbTool, tool_id)
+        stmt = (
+            select(DbTool)
+            .where(DbTool.id == tool_id)
+            .options(
+                selectinload(DbTool.tools),
+                selectinload(DbTool.prompts),
+                selectinload(DbTool.resources),
+                selectinload(DbTool.metrics),
+            )
+        )
+        result = await db.execute(stmt)
+        tool = result.scalar_one_or_none()
+
         if not tool:
             raise ToolNotFoundError(f"Tool not found: {tool_id}")
         return self._convert_tool_to_read(tool)

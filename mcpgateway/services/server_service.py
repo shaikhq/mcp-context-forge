@@ -21,6 +21,7 @@ import httpx
 from sqlalchemy import delete, func, not_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from mcpgateway.config import settings
 from mcpgateway.db import Prompt as DbPrompt
@@ -249,6 +250,12 @@ class ServerService:
             A list of ServerRead objects.
         """
         query = select(DbServer)
+        query = query.options(
+            selectinload(DbServer.tools),
+            selectinload(DbServer.prompts),
+            selectinload(DbServer.resources),
+            selectinload(DbServer.metrics),
+        )
         if not include_inactive:
             query = query.where(DbServer.is_active)
         result = await db.execute(query)
@@ -268,7 +275,19 @@ class ServerService:
         Raises:
             ServerNotFoundError: If no server with the given ID exists.
         """
-        server = await db.get(DbServer, server_id)
+        stmt = (
+            select(DbServer)
+            .where(DbServer.id == server_id)
+            .options(
+                selectinload(DbServer.tools),
+                selectinload(DbServer.prompts),
+                selectinload(DbServer.resources),
+                selectinload(DbServer.metrics),
+            )
+        )
+        result = await db.execute(stmt)
+        server = result.scalar_one_or_none()
+
         if not server:
             raise ServerNotFoundError(f"Server not found: {server_id}")
         server_data = {
