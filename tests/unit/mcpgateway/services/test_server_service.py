@@ -109,11 +109,11 @@ class TestServerService:
         mock_scalar.scalar_one_or_none.return_value = None
         test_db.execute = Mock(return_value=mock_scalar)
         test_db.add = Mock()
-        test_await db.commit = Mock()
-        test_await db.refresh = Mock()
+        test_db.commit = Mock()
+        test_db.refresh = Mock()
 
         # Set up await db.get to return associated objects
-        test_await db.get = Mock(
+        test_db.get = Mock(
             side_effect=lambda cls, id: {
                 (DbTool, 101): mock_tool,
                 (DbResource, 201): mock_resource,
@@ -156,8 +156,8 @@ class TestServerService:
 
         # Verify DB operations
         test_db.add.assert_called_once()
-        test_await db.commit.assert_called_once()
-        test_await db.refresh.assert_called_once()
+        test_db.commit.assert_called_once()
+        test_db.refresh.assert_called_once()
 
         # Verify notification
         server_service._notify_server_added.assert_called_once()
@@ -200,8 +200,8 @@ class TestServerService:
         test_db.execute = Mock(return_value=mock_scalar)
 
         # Set up await db.get to return None for tool (not found)
-        test_await db.get = Mock(return_value=None)
-        test_await db.rollback = Mock()
+        test_db.get = Mock(return_value=None)
+        test_db.rollback = Mock()
 
         # Create server request with non-existent tool
         server_create = ServerCreate(name="test_server", description="A test server", associated_tools=["999"])  # Non-existent tool ID
@@ -213,7 +213,7 @@ class TestServerService:
         assert "Tool with id 999 does not exist" in str(exc_info.value)
 
         # Verify rollback
-        test_await db.rollback.assert_called_once()
+        test_db.rollback.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_list_servers(self, server_service, mock_server, test_db):
@@ -264,7 +264,7 @@ class TestServerService:
     async def test_get_server(self, server_service, mock_server, test_db):
         """Test getting a server by ID."""
         # Mock DB get to return server
-        test_await db.get = Mock(return_value=mock_server)
+        test_db.get = Mock(return_value=mock_server)
 
         # Set up conversion
         server_read = ServerRead(
@@ -295,7 +295,7 @@ class TestServerService:
         result = await server_service.get_server(test_db, 1)
 
         # Verify DB query
-        test_await db.get.assert_called_once_with(DbServer, 1)
+        test_db.get.assert_called_once_with(DbServer, 1)
 
         # Verify result
         assert result == server_read
@@ -305,7 +305,7 @@ class TestServerService:
     async def test_get_server_not_found(self, server_service, test_db):
         """Test getting a non-existent server."""
         # Mock DB get to return None
-        test_await db.get = Mock(return_value=None)
+        test_db.get = Mock(return_value=None)
 
         # Should raise NotFoundError
         with pytest.raises(ServerNotFoundError) as exc_info:
@@ -317,7 +317,7 @@ class TestServerService:
     async def test_update_server(self, server_service, mock_server, test_db, mock_tool, mock_resource, mock_prompt):
         """Test updating a server."""
         # Mock DB get to return server
-        test_await db.get = Mock(
+        test_db.get = Mock(
             side_effect=lambda cls, id: (
                 mock_server
                 if cls == DbServer and id == 1
@@ -334,8 +334,8 @@ class TestServerService:
         mock_scalar.scalar_one_or_none.return_value = None
         test_db.execute = Mock(return_value=mock_scalar)
 
-        test_await db.commit = Mock()
-        test_await db.refresh = Mock()
+        test_db.commit = Mock()
+        test_db.refresh = Mock()
 
         # Set up service methods
         server_service._notify_server_updated = AsyncMock()
@@ -371,8 +371,8 @@ class TestServerService:
         result = await server_service.update_server(test_db, 1, server_update)
 
         # Verify DB operations
-        test_await db.commit.assert_called_once()
-        test_await db.refresh.assert_called_once()
+        test_db.commit.assert_called_once()
+        test_db.refresh.assert_called_once()
 
         # Verify server properties were updated
         assert mock_server.name == "updated_server"
@@ -394,7 +394,7 @@ class TestServerService:
     async def test_update_server_not_found(self, server_service, test_db):
         """Test updating a non-existent server."""
         # Mock DB get to return None
-        test_await db.get = Mock(return_value=None)
+        test_db.get = Mock(return_value=None)
 
         # Create update request
         server_update = ServerUpdate(name="updated_server", description="An updated server")
@@ -418,14 +418,14 @@ class TestServerService:
         server2.is_active = True
 
         # Mock DB get to return server1
-        test_await db.get = Mock(return_value=server1)
+        test_db.get = Mock(return_value=server1)
 
         # Mock DB to check for name conflicts and return server2
         mock_scalar = Mock()
         mock_scalar.scalar_one_or_none.return_value = server2
         test_db.execute = Mock(return_value=mock_scalar)
 
-        test_await db.rollback = Mock()
+        test_db.rollback = Mock()
 
         # Create update request with conflicting name
         server_update = ServerUpdate(
@@ -445,9 +445,9 @@ class TestServerService:
     async def test_toggle_server_status(self, server_service, mock_server, test_db):
         """Test toggling server active status."""
         # Mock DB get to return server
-        test_await db.get = Mock(return_value=mock_server)
-        test_await db.commit = Mock()
-        test_await db.refresh = Mock()
+        test_db.get = Mock(return_value=mock_server)
+        test_db.commit = Mock()
+        test_db.refresh = Mock()
 
         # Set up service methods
         server_service._notify_server_activated = AsyncMock()
@@ -481,9 +481,9 @@ class TestServerService:
         result = await server_service.toggle_server_status(test_db, 1, activate=False)
 
         # Verify DB operations
-        test_await db.get.assert_called_once_with(DbServer, 1)
-        test_await db.commit.assert_called_once()
-        test_await db.refresh.assert_called_once()
+        test_db.get.assert_called_once_with(DbServer, 1)
+        test_db.commit.assert_called_once()
+        test_db.refresh.assert_called_once()
 
         # Verify properties were updated
         assert mock_server.is_active is False
@@ -499,9 +499,9 @@ class TestServerService:
     async def test_delete_server(self, server_service, mock_server, test_db):
         """Test deleting a server."""
         # Mock DB get to return server
-        test_await db.get = Mock(return_value=mock_server)
+        test_db.get = Mock(return_value=mock_server)
         test_db.delete = Mock()
-        test_await db.commit = Mock()
+        test_db.commit = Mock()
 
         # Set up service methods
         server_service._notify_server_deleted = AsyncMock()
@@ -510,9 +510,9 @@ class TestServerService:
         await server_service.delete_server(test_db, 1)
 
         # Verify DB operations
-        test_await db.get.assert_called_once_with(DbServer, 1)
+        test_db.get.assert_called_once_with(DbServer, 1)
         test_db.delete.assert_called_once_with(mock_server)
-        test_await db.commit.assert_called_once()
+        test_db.commit.assert_called_once()
 
         # Verify notification
         server_service._notify_server_deleted.assert_called_once()
@@ -521,7 +521,7 @@ class TestServerService:
     async def test_delete_server_not_found(self, server_service, test_db):
         """Test deleting a non-existent server."""
         # Mock DB get to return None
-        test_await db.get = Mock(return_value=None)
+        test_db.get = Mock(return_value=None)
 
         # Should raise NotFoundError
         with pytest.raises(ServerNotFoundError) as exc_info:
@@ -534,11 +534,11 @@ class TestServerService:
         """Test resetting metrics."""
         # Mock DB operations
         test_db.execute = Mock()
-        test_await db.commit = Mock()
+        test_db.commit = Mock()
 
         # Call method
         await server_service.reset_metrics(test_db)
 
         # Verify DB operations
         test_db.execute.assert_called_once()
-        test_await db.commit.assert_called_once()
+        test_db.commit.assert_called_once()

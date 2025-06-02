@@ -71,8 +71,8 @@ class TestPromptService:
         mock_scalar.scalar_one_or_none.return_value = None
         test_db.execute = Mock(return_value=mock_scalar)
         test_db.add = Mock()
-        test_await db.commit = Mock()
-        test_await db.refresh = Mock()
+        test_db.commit = Mock()
+        test_db.refresh = Mock()
 
         # Set up prompt service methods
         prompt_service._notify_prompt_added = AsyncMock()
@@ -111,8 +111,8 @@ class TestPromptService:
 
         # Verify DB operations
         test_db.add.assert_called_once()
-        test_await db.commit.assert_called_once()
-        test_await db.refresh.assert_called_once()
+        test_db.commit.assert_called_once()
+        test_db.refresh.assert_called_once()
 
         # Verify validation and notification
         prompt_service._validate_template.assert_called_once_with(prompt_create.template)
@@ -163,7 +163,7 @@ class TestPromptService:
             await prompt_service.register_prompt(test_db, prompt_create)
 
         assert "Failed to register prompt" in str(exc_info.value)
-        test_await db.rollback.assert_called_once()
+        test_db.rollback.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_list_prompts(self, prompt_service, mock_prompt, test_db):
@@ -300,8 +300,8 @@ class TestPromptService:
         mock_scalar.scalar_one_or_none.return_value = mock_prompt
         test_db.execute = Mock(return_value=mock_scalar)
 
-        test_await db.commit = Mock()
-        test_await db.refresh = Mock()
+        test_db.commit = Mock()
+        test_db.refresh = Mock()
 
         # Set up prompt service methods
         prompt_service._notify_prompt_updated = AsyncMock()
@@ -342,8 +342,8 @@ class TestPromptService:
         result = await prompt_service.update_prompt(test_db, "test_prompt", prompt_update)
 
         # Verify DB operations
-        test_await db.commit.assert_called_once()
-        test_await db.refresh.assert_called_once()
+        test_db.commit.assert_called_once()
+        test_db.refresh.assert_called_once()
 
         # Verify prompt properties were updated
         assert mock_prompt.name == "updated_prompt"
@@ -401,7 +401,7 @@ class TestPromptService:
         mock_scalar2.scalar_one_or_none.return_value = prompt2
 
         test_db.execute = Mock(side_effect=[mock_scalar1, mock_scalar2])
-        test_await db.rollback = Mock()
+        test_db.rollback = Mock()
 
         # Create update request with conflicting name
         prompt_update = PromptUpdate(
@@ -418,7 +418,7 @@ class TestPromptService:
         assert exc_info.value.prompt_id == prompt2.id
 
         # Verify rollback
-        test_await db.rollback.assert_called_once()
+        test_db.rollback.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_delete_prompt(self, prompt_service, mock_prompt, test_db):
@@ -429,7 +429,7 @@ class TestPromptService:
         test_db.execute = Mock(return_value=mock_scalar)
 
         test_db.delete = Mock()
-        test_await db.commit = Mock()
+        test_db.commit = Mock()
 
         # Set up prompt service methods
         prompt_service._notify_prompt_deleted = AsyncMock()
@@ -439,7 +439,7 @@ class TestPromptService:
 
         # Verify DB operations
         test_db.delete.assert_called_once_with(mock_prompt)
-        test_await db.commit.assert_called_once()
+        test_db.commit.assert_called_once()
 
         # Verify notification
         prompt_service._notify_prompt_deleted.assert_called_once()
@@ -462,9 +462,9 @@ class TestPromptService:
     async def test_toggle_prompt_status(self, prompt_service, mock_prompt, test_db):
         """Test toggling prompt active status."""
         # Mock DB to return prompt
-        test_await db.get = Mock(return_value=mock_prompt)
-        test_await db.commit = Mock()
-        test_await db.refresh = Mock()
+        test_db.get = Mock(return_value=mock_prompt)
+        test_db.commit = Mock()
+        test_db.refresh = Mock()
 
         # Set up prompt service methods
         prompt_service._notify_prompt_activated = AsyncMock()
@@ -496,9 +496,9 @@ class TestPromptService:
         result = await prompt_service.toggle_prompt_status(test_db, 1, activate=False)
 
         # Verify DB operations
-        test_await db.get.assert_called_once_with(DbPrompt, 1)
-        test_await db.commit.assert_called_once()
-        test_await db.refresh.assert_called_once()
+        test_db.get.assert_called_once_with(DbPrompt, 1)
+        test_db.commit.assert_called_once()
+        test_db.refresh.assert_called_once()
 
         # Verify properties were updated
         assert mock_prompt.is_active is False
@@ -515,14 +515,14 @@ class TestPromptService:
         """Test resetting metrics."""
         # Mock DB operations
         test_db.execute = Mock()
-        test_await db.commit = Mock()
+        test_db.commit = Mock()
 
         # Call method
         await prompt_service.reset_metrics(test_db)
 
         # Verify DB operations
         test_db.execute.assert_called_once()
-        test_await db.commit.assert_called_once()
+        test_db.commit.assert_called_once()
 
     def test_validate_template(self, prompt_service):
         """Test template validation."""
