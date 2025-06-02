@@ -15,11 +15,11 @@ Updated to record server associations independently using many-to-many relations
 and to record tool execution metrics.
 """
 
+import asyncio
+import logging
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-import logging
-import asyncio
 
 import jsonschema
 from sqlalchemy import (
@@ -38,6 +38,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.event import listen
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -46,7 +47,6 @@ from sqlalchemy.orm import (
     relationship,
     sessionmaker,
 )
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 from mcpgateway.config import settings
 from mcpgateway.types import ResourceContent

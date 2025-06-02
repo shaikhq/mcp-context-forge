@@ -22,16 +22,22 @@ from typing import Any, AsyncGenerator, Dict, List, Optional, Set
 import httpx
 from mcp import ClientSession
 from mcp.client.sse import sse_client
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from mcpgateway.config import settings
-from mcpgateway.db import Gateway as DbGateway, AsyncSessionLocal
+from mcpgateway.db import AsyncSessionLocal
+from mcpgateway.db import Gateway as DbGateway
 from mcpgateway.db import Tool as DbTool
 from mcpgateway.schemas import GatewayCreate, GatewayRead, GatewayUpdate, ToolCreate
-from mcpgateway.services.tool_service import ToolService, ToolRead, ToolNameConflictError, ToolError
+from mcpgateway.services.tool_service import (
+    ToolError,
+    ToolNameConflictError,
+    ToolRead,
+    ToolService,
+)
 from mcpgateway.utils.services_auth import decode_auth
 
 logger = logging.getLogger(__name__)
