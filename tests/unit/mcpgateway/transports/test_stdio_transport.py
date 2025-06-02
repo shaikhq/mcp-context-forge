@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """Tests for the stdio transport implementation.
 
@@ -11,10 +10,7 @@ communication over standard input/output streams.
 """
 
 import asyncio
-import json
-import sys
-from io import StringIO
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -37,7 +33,7 @@ class TestStdioTransport:
         mock_loop = MagicMock()
         mock_get_loop.return_value = mock_loop
 
-        mock_reader = MagicMock()
+        MagicMock()
         mock_reader_protocol = MagicMock()
 
         mock_transport = MagicMock()

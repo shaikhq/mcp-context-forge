@@ -1,5 +1,7 @@
 # MCP Gateway
 
+[![CodeQL Advanced](https://github.com/IBM/mcp-context-forge/actions/workflows/codeql.yml/badge.svg)](https://github.com/IBM/mcp-context-forge/actions/workflows/codeql.yml) [![Bandit](https://github.com/IBM/mcp-context-forge/actions/workflows/bandit.yml/badge.svg)](https://github.com/IBM/mcp-context-forge/actions/workflows/bandit.yml) [![Build Python Package](https://github.com/IBM/mcp-context-forge/actions/workflows/python-package.yml/badge.svg)](https://github.com/IBM/mcp-context-forge/actions/workflows/python-package.yml) [![Secure Docker Build](https://github.com/IBM/mcp-context-forge/actions/workflows/docker-image.yml/badge.svg)](https://github.com/IBM/mcp-context-forge/actions/workflows/docker-image.yml) [![Dependency Review](https://github.com/IBM/mcp-context-forge/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/IBM/mcp-context-forge/actions/workflows/dependency-review.yml) [![Deploy to IBM Code Engine](https://github.com/IBM/mcp-context-forge/actions/workflows/ibm-cloud-code-engine.yml/badge.svg)](https://github.com/IBM/mcp-context-forge/actions/workflows/ibm-cloud-code-engine.yml)
+
 A flexible feature-rich FastAPI-based gateway for the Model Context Protocol (MCP) that unifies and federates tools, resources, prompts, servers and peer gateways, wraps any REST API as MCP-compliant tools or virtual servers, and exposes everything over HTTP/JSON-RPC, WebSocket, Server-Sent Events (SSE) and stdio transports—all manageable via a rich, interactive Admin UI and packaged as a container with support for any SQLAlchemy supported database.
 
 ![MCP Gateway](docs/docs/images/mcpgateway.gif)
@@ -14,6 +16,52 @@ MCP Gateway builds on the MCP spec by sitting **in front of** MCP Server or REST
 * **Virtualize** non-MCP services as “virtual servers” so you can register any REST API or function endpoint and expose it under MCP semantics
 * **Adapt** arbitrary REST/HTTP APIs into MCP tools with JSON-Schema input validation, retry/rate-limit policies and transparent JSON-RPC invocation
 * **Simplify** deployments with a full admin UI, rich transports, pre-built DX pipelines and production-grade observability
+
+```mermaid
+graph TD
+    subgraph UI_and_Auth
+        UI[🖥️ Admin UI]
+        Auth[🔐 Auth - JWT and Basic]
+        UI --> Core
+        Auth --> Core
+    end
+
+    subgraph Gateway_Core
+        Core[🚪 MCP Gateway Core]
+        Protocol[📡 Protocol - Init Ping Completion]
+        Federation[🌐 Federation Manager]
+        Transports[🔀 Transports - HTTP WS SSE Stdio]
+
+        Core --> Protocol
+        Core --> Federation
+        Core --> Transports
+    end
+
+    subgraph Services
+        Tools[🧰 Tool Service]
+        Resources[📁 Resource Service]
+        Prompts[📝 Prompt Service]
+        Servers[🧩 Server Service]
+
+        Core --> Tools
+        Core --> Resources
+        Core --> Prompts
+        Core --> Servers
+    end
+
+    subgraph Persistence
+        DB[💾 Database - SQLAlchemy]
+        Tools --> DB
+        Resources --> DB
+        Prompts --> DB
+        Servers --> DB
+    end
+
+    subgraph Caching
+        Cache[⚡ Cache - Redis or Memory]
+        Core --> Cache
+    end
+```
 
 ---
 
@@ -46,7 +94,94 @@ MCP Gateway builds on the MCP spec by sitting **in front of** MCP Server or REST
 
 ---
 
-## Quick Start
+## Quick Start (Pre-built Image)
+
+If you just want to run the gateway using the official image from GitHub Container Registry:
+
+```bash
+docker run -d --name mcpgateway \
+  -p 4444:4444 \
+  -e HOST=0.0.0.0 \
+  -e JWT_SECRET_KEY=my-secret-key \
+  -e BASIC_AUTH_USER=admin \
+  -e BASIC_AUTH_PASSWORD=changeme \
+  -e AUTH_REQUIRED=true \
+  -e DATABASE_URL=sqlite:///./mcp.db \
+  ghcr.io/ibm/mcp-context-forge:latest
+
+docker logs mcpgateway
+```
+
+> 💡 You can also use `--env-file .env` if you have a config file already. See the provided [.env.example](.env.example)
+
+### Optional: Mount a local volume for persistent SQLite storage
+
+```bash
+-v $(pwd)/data:/app
+```
+
+### Generate a token for API access
+
+```bash
+export MCPGATEWAY_BEARER_TOKEN=$(docker exec mcpgateway python3 -m mcpgateway.utils.create_jwt_token --username admin --exp 10080 --secret my-test-key)
+```
+
+### Smoke-test the running container
+
+```bash
+curl -s -H "Authorization: Bearer $MCPGATEWAY_BEARER_TOKEN" \
+     http://localhost:4444/health
+curl -s -H "Authorization: Bearer $MCPGATEWAY_BEARER_TOKEN" \
+     http://localhost:4444/tools | jq
+```
+
+### Running the mcpgateway-wrapper
+
+The mcpgateway-wrapper lets you connect to the gateway over stdio.
+
+```bash
+docker run -i --name mcpgateway-wrapper \
+  --entrypoint uv \
+  -e UV_CACHE_DIR=/tmp/uv-cache \
+  -e MCP_SERVER_CATALOG_URLS=http://host.docker.internal:4444 \
+  -e MCP_AUTH_TOKEN=$MCPGATEWAY_BEARER_TOKEN \
+  ghcr.io/ibm/mcp-context-forge:latest \
+  run --directory mcpgateway-wrapper mcpgateway-wrapper
+```
+
+### Running from a MCP Client
+
+```json
+{
+  "servers": {
+    "mcpgateway-wrapper": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "MCP_SERVER_CATALOG_URLS=http://host.docker.internal:4444/servers/1",
+        "-e",
+        "MCP_AUTH_TOKEN=${MCPGATEWAY_BEARER_TOKEN}",
+        "--entrypoint",
+        "uv",
+        "ghcr.io/ibm/mcp-context-forge:latest",
+        "run",
+        "--directory",
+        "mcpgateway-wrapper",
+        "mcpgateway-wrapper"
+      ],
+      "env": {
+        "MCPGATEWAY_BEARER_TOKEN": "${MCPGATEWAY_BEARER_TOKEN}"
+      }
+    }
+  }
+}
+```
+---
+
+## Quick Start (manual install)
 
 ### Prerequisites
 
@@ -363,7 +498,7 @@ curl -H "Authorization: Bearer $MCPGATEWAY_BEARER_TOKEN" http://localhost:4444/t
 
 ---
 
-## ☁️ AAWS / Azure / OpenShift
+## ☁️ AWS / Azure / OpenShift
 
 Deployment details can be found in the GitHub Pages.
 

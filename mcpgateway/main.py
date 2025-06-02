@@ -52,7 +52,6 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware
 
-# Import the admin routes from the new module
 from mcpgateway.admin import admin_router
 from mcpgateway.cache import ResourceCache, SessionRegistry
 from mcpgateway.config import jsonpath_modifier, settings
@@ -117,6 +116,9 @@ from mcpgateway.validation.jsonrpc import (
     JSONRPCError,
     validate_request,
 )
+
+# Import the admin routes from the new module
+from mcpgateway.version import router as version_router
 
 # Initialize logging service first
 logging_service = LoggingService()
@@ -1948,6 +1950,7 @@ async def healthcheck(db: AsyncSession = Depends(get_db)):
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
 
 # Include routers
+app.include_router(version_router)
 app.include_router(protocol_router)
 app.include_router(tool_router)
 app.include_router(resource_router)

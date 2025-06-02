@@ -293,6 +293,7 @@ images:
 # help: isort                - Organise & sort imports with isort
 # help: flake8               - PEP-8 style & logical errors
 # help: pylint               - Pylint static analysis
+# help: markdownlint         - Lint Markdown files with markdownlint (requires markdownlint-cli)
 # help: mypy                 - Static type-checking with mypy
 # help: bandit               - Security scan with bandit
 # help: pydocstyle           - Docstring style checker
@@ -320,11 +321,11 @@ images:
 # List of individual lint targets; lint loops over these
 LINTERS := isort flake8 pylint mypy bandit pydocstyle pycodestyle pre-commit \
            ruff pyright radon pyroma pyre spellcheck importchecker \
-		   pytype check-manifest
+		   pytype check-manifest markdownlint
 
 .PHONY: lint $(LINTERS) black fawltydeps wily depend snakeviz pstats \
-        spellcheck-sort tox \
-		pytype check-manifest
+        spellcheck-sort tox pytype sbom
+
 
 ## --------------------------------------------------------------------------- ##
 ##  Master target
@@ -342,10 +343,10 @@ lint:
 ## --------------------------------------------------------------------------- ##
 autoflake:                          ## 🧹  Strip unused imports / vars
 	autoflake --in-place --remove-all-unused-imports \
-	          --remove-unused-variables -r mcpgateway
+	          --remove-unused-variables -r mcpgateway mcpgateway-wrapper tests
 
 black:                              ## 🎨  Reformat code with black
-	@echo "🎨  black …" && black -l 200 mcpgateway
+	@echo "🎨  black …" && black -l 200 mcpgateway mcpgateway-wrapper tests
 
 isort:                              ## 🔀  Sort imports
 	@echo "🔀  isort …" && isort .
@@ -355,6 +356,9 @@ flake8:                             ## 🐍  flake8 checks
 
 pylint:                             ## 🐛  pylint checks
 	pylint mcpgateway
+
+markdownlint:					    ## 📖  Markdown linting
+	markdownlint -c .markdownlint.json .
 
 mypy:                               ## 🏷️  mypy type-checking
 	mypy mcpgateway
@@ -372,19 +376,19 @@ pre-commit:                         ## 🪄  Run pre-commit hooks
 	pre-commit run --all-files --show-diff-on-failure
 
 ruff:                               ## ⚡  Ruff lint + format
-	ruff check mcpgateway && ruff format mcpgateway
+	ruff check mcpgateway && ruff format mcpgateway mcpgateway-wrapper tests
 
-ty:                               ## ⚡  Ty type checker
-	ty check mcpgateway
+ty:                                 ## ⚡  Ty type checker
+	ty check mcpgateway mcpgateway-wrapper tests
 
 pyright:                            ## 🏷️  Pyright type-checking
-	pyright mcpgateway
+	pyright mcpgateway mcpgateway-wrapper tests
 
 radon:                              ## 📈  Complexity / MI metrics
-	radon mi -s mcpgateway && \
-	radon cc -s mcpgateway && \
-	radon hal mcpgateway && \
-	radon raw -s mcpgateway
+	radon mi -s mcpgateway mcpgateway-wrapper tests && \
+	radon cc -s mcpgateway mcpgateway-wrapper tests && \
+	radon hal mcpgateway mcpgateway-wrapper tests && \
+	radon raw -s mcpgateway mcpgateway-wrapper tests
 
 pyroma:                             ## 📦  Packaging metadata check
 	pyroma -d .
@@ -428,8 +432,7 @@ tox:                                ## 🧪  Multi-Python tox matrix
 	pdm python install 3.11 3.12
 	python -m tox -p 2
 
-.PHONY: sbom
-sbom:
+sbom:								## 🛡️  Generate SBOM & security report
 	@echo "🛡️   Generating SBOM & security report…"
 	@rm -Rf "$(VENV_DIR).sbom"
 	@python3 -m venv "$(VENV_DIR).sbom"
@@ -440,13 +443,46 @@ sbom:
 	@trivy sbom $(PROJECT_NAME).sbom.json | tee -a $(DOCS_DIR)/docs/test/sbom.md
 	@/bin/bash -c "source $(VENV_DIR).sbom/bin/activate && python3 -m pdm outdated | tee -a $(DOCS_DIR)/docs/test/sbom.md"
 
-pytype:
+pytype:								## 🧠  Pytype static type analysis
 	@echo "🧠  Pytype analysis…"
-	pytype -V 3.12 -j auto mcpgateway
+	pytype -V 3.12 -j auto mcpgateway mcpgateway-wrapper tests
 
-check-manifest:
+check-manifest:						## 📦  Verify MANIFEST.in completeness
 	@echo "📦  Verifying MANIFEST.in completeness…"
 	check-manifest
+
+# -----------------------------------------------------------------------------
+# 📑 YAML / JSON / TOML LINTERS
+# -----------------------------------------------------------------------------
+# help: yamllint            - Lint YAML files (uses .yamllint)
+# help: jsonlint            - Validate every *.json file with jq (‐‐exit-status)
+# help: tomllint            - Validate *.toml files with tomlcheck
+#
+# ➊  Add the new linters to the master list
+LINTERS += yamllint jsonlint tomllint
+
+# ➋  Individual targets
+.PHONY: yamllint jsonlint tomllint
+
+yamllint:                         ## 📑 YAML linting
+	@command -v yamllint >/dev/null 2>&1 || { \
+	  echo '❌  yamllint not installed  ➜  pip install yamllint'; exit 1; }
+	@echo '📑  yamllint …' && yamllint -c .yamllint .
+
+jsonlint:                         ## 📑 JSON validation (jq)
+	@command -v jq >/dev/null 2>&1 || { \
+	  echo '❌  jq not installed  ➜  sudo apt-get install jq'; exit 1; }
+	@echo '📑  jsonlint (jq) …'
+	@find . -type f -name '*.json' -not -path './node_modules/*' -print0 \
+	  | xargs -0 -I{} sh -c 'jq empty "{}"' \
+	&& echo '✅  All JSON valid'
+
+tomllint:                         ## 📑 TOML validation (tomlcheck)
+	@command -v tomlcheck >/dev/null 2>&1 || { \
+	  echo '❌  tomlcheck not installed  ➜  pip install tomlcheck'; exit 1; }
+	@echo '📑  tomllint (tomlcheck) …'
+	@find . -type f -name '*.toml' -print0 \
+	  | xargs -0 -I{} tomlcheck "{}"
 
 # =============================================================================
 # 🕸️  WEBPAGE LINTERS & STATIC ANALYSIS
@@ -492,6 +528,41 @@ format-web: install-web-linters
 	                 "mcpgateway/static/**/*.css" \
 	                 "mcpgateway/static/**/*.js"
 
+
+################################################################################
+# 🛡️  OSV-SCANNER  ▸  vulnerabilities scanner
+################################################################################
+# help: osv-install          - Install/upgrade osv-scanner (Go)
+# help: osv-scan-source      - Scan source & lockfiles for CVEs
+# help: osv-scan-image       - Scan the built container image for CVEs
+# help: osv-scan             - Run all osv-scanner checks (source, image, licence)
+
+.PHONY: osv-install osv-scan-source osv-scan-image osv-scan
+
+osv-install:                  ## Install/upgrade osv-scanner
+	go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest
+
+# ─────────────── Source directory scan ────────────────────────────────────────
+osv-scan-source:
+	@echo "🔍  osv-scanner source scan…"
+	@osv-scanner scan source --recursive .
+
+# ─────────────── Container image scan ─────────────────────────────────────────
+osv-scan-image:
+	@echo "🔍  osv-scanner image scan…"
+	@CONTAINER_CLI=$$(command -v docker || command -v podman) ; \
+	  if [ -n "$$CONTAINER_CLI" ]; then \
+	    osv-scanner scan image $(DOCKLE_IMAGE) || true ; \
+	  else \
+	    TARBALL=$$(mktemp /tmp/$(PROJECT_NAME)-osvscan-XXXXXX.tar) ; \
+	    podman save --format=docker-archive $(DOCKLE_IMAGE) -o "$$TARBALL" ; \
+	    osv-scanner scan image --archive "$$TARBALL" ; \
+	    rm -f "$$TARBALL" ; \
+	  fi
+
+# ─────────────── Umbrella target ─────────────────────────────────────────────
+osv-scan: osv-scan-source osv-scan-image
+	@echo "✅  osv-scanner checks complete."
 
 # =============================================================================
 # 📡 SONARQUBE ANALYSIS (SERVER + SCANNERS)
@@ -829,7 +900,7 @@ podman-run-ssl-host: certs
 		--health-interval=1m --health-retries=3 \
 		--health-start-period=30s --health-timeout=10s \
 		-d $(IMG_PROD)
-	@sleep 2 && podman logs $(PROJECT_NAME) | tail -n +1	
+	@sleep 2 && podman logs $(PROJECT_NAME) | tail -n +1
 
 podman-stop:
 	@echo "🛑  Stopping podman container…"
@@ -980,7 +1051,7 @@ docker-shell:
 # help: compose-pull         - Pull the latest images only
 # help: compose-logs         - Tail logs from all services (Ctrl-C to exit)
 # help: compose-ps           - Show container status table
-# help: compose-shell        - Open an interactive shell in the “gateway” container
+# help: compose-shell        - Open an interactive shell in the "gateway" container
 # help: compose-stop         - Gracefully stop the stack (keep containers)
 # help: compose-down         - Stop & remove containers (keep named volumes)
 # help: compose-rm           - Remove *stopped* containers
@@ -1211,4 +1282,3 @@ ibmcloud-ce-status:
 ibmcloud-ce-rm:
 	@echo "🗑️  Deleting Code Engine app: $(IBMCLOUD_CODE_ENGINE_APP)…"
 	@ibmcloud ce application delete --name $(IBMCLOUD_CODE_ENGINE_APP) -f
-
