@@ -56,7 +56,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from mcpgateway.admin import admin_router
 from mcpgateway.cache import ResourceCache, SessionRegistry
 from mcpgateway.config import jsonpath_modifier, settings
-from mcpgateway.db import Base, AsyncSessionLocal, engine, get_db, init_db
+from mcpgateway.db import get_db
 from mcpgateway.handlers.sampling import SamplingHandler
 from mcpgateway.schemas import (
     GatewayCreate,
