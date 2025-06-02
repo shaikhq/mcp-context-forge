@@ -205,6 +205,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 logger.error(f"Error shutting down {service.__class__.__name__}: {str(e)}")
         logger.info("Shutdown complete")
 
+
 # Initialize FastAPI app
 app = FastAPI(
     title=settings.app_name,
@@ -501,6 +502,7 @@ async def get_server(server_id: int, db: AsyncSession = Depends(get_db), user: s
         return await server_service.get_server(db, server_id)
     except ServerNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
 
 @server_router.post("", response_model=ServerRead, status_code=201)
 @server_router.post("/", response_model=ServerRead, status_code=201)
@@ -1258,6 +1260,7 @@ async def list_prompts(
     logger.debug(f"User: {user} requested prompt list with include_inactive={include_inactive}, cursor={cursor}")
     return await prompt_service.list_prompts(db, cursor=cursor, include_inactive=include_inactive)
 
+
 @prompt_router.post("", response_model=PromptRead)
 @prompt_router.post("/", response_model=PromptRead)
 async def create_prompt(
@@ -1555,6 +1558,7 @@ async def list_roots(
     """
     logger.debug(f"User '{user}' requested list of roots")
     return await root_service.list_roots()
+
 
 @root_router.post("", response_model=Root)
 @root_router.post("/", response_model=Root)
@@ -1935,6 +1939,7 @@ async def healthcheck(db: AsyncSession = Depends(get_db)):
         logger.error(error_message)
         return {"status": "unhealthy", "error": error_message}
     return {"status": "healthy"}
+
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")

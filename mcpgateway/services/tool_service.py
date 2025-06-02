@@ -640,7 +640,7 @@ class ToolService:
             )
             result = await db.execute(stmt)
             tool = result.scalar_one_or_none()
-            
+
             if not tool:
                 raise ToolNotFoundError(f"Tool not found: {tool_id}")
             if tool_update.name is not None and tool_update.name != tool.name:

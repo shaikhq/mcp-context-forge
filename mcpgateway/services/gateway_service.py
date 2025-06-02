@@ -263,9 +263,7 @@ class GatewayService:
             for tool in tools:
                 tool.gateway_id = inserted_gateway_id
 
-            tool_registration_tasks = [
-                self.register_tool(db=db, tool=tool) for tool in tools
-            ]
+            tool_registration_tasks = [self.register_tool(db=db, tool=tool) for tool in tools]
 
             db_tools = []
             if tool_registration_tasks:
@@ -275,7 +273,7 @@ class GatewayService:
 
             if len(db_tools) > 0:
                 for db_tool in db_tools:
-                    await db.refresh(db_tool, attribute_names=['servers', 'metrics', 'gateway', 'federated_with'])
+                    await db.refresh(db_tool, attribute_names=["servers", "metrics", "gateway", "federated_with"])
                     self.tool_service._convert_tool_to_read(db_tool)
 
             await db.refresh(db_gateway)
@@ -698,7 +696,7 @@ class GatewayService:
                         tools = [ToolCreate.model_validate(tool) for tool in tools]
 
                 return capabilities, tools
-            
+
             if authentication is None:
                 authentication = {}
 

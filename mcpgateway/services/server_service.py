@@ -334,7 +334,7 @@ class ServerService:
             )
             result = await db.execute(stmt)
             server = result.scalar_one_or_none()
-            
+
             if not server:
                 raise ServerNotFoundError(f"Server not found: {server_id}")
 

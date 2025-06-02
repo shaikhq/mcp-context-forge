@@ -64,10 +64,7 @@ engine = create_async_engine(
 )
 
 # Session factory
-AsyncSessionLocal = sessionmaker(
-    autocommit=False, autoflush=False, bind=engine, class_=AsyncSession
-)
-
+AsyncSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
 
 
 class Base(DeclarativeBase):
@@ -1059,7 +1056,7 @@ async def init_db():
         async with engine.begin() as conn:
             # Use this to drop all tables (optional)
             # await conn.run_sync(Base.metadata.drop_all)
-            
+
             # This will create all tables
             await conn.run_sync(Base.metadata.create_all)
     except SQLAlchemyError as e:
@@ -1067,6 +1064,7 @@ async def init_db():
         raise Exception(f"Failed to initialize database: {str(e)}")
     finally:
         await engine.dispose()
+
 
 if __name__ == "__main__":
     asyncio.run(init_db())

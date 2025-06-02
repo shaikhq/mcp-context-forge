@@ -551,6 +551,7 @@ class SessionRegistry(SessionBackend):
         logger.info("Starting database cleanup task")
         while True:
             try:
+
                 async def _db_cleanup():
                     db_gen = get_db()
                     db_session = await anext(db_gen)
@@ -713,7 +714,7 @@ class SessionRegistry(SessionBackend):
             method = message["method"]
             params = message.get("params", {})
             req_id = message["id"]
-            
+
             db_gen = get_db()
             db_session = await anext(db_gen)
 
