@@ -169,6 +169,10 @@ class Settings(BaseSettings):
     db_max_overflow: int = 10
     db_pool_timeout: int = 30
     db_pool_recycle: int = 3600
+    db_keepalives: int = 1
+    db_keepalives_idle: int = 30
+    db_keepalives_interval: int = 5
+    db_keepalives_count: int = 5
 
     # Cache
     cache_type: str = "database"  # memory or redis or database

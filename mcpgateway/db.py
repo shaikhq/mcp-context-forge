@@ -63,6 +63,29 @@ engine = create_async_engine(
     connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {},
 )
 
+if settings.database_url.startswith("sqlite"):
+    connect_args = {
+        "check_same_thread": False,
+    }
+else:
+    connect_args = {
+        "keepalives": settings.db_keepalives,
+        "keepalives_idle": settings.db_keepalives_idle,
+        "keepalives_interval": settings.db_keepalives_interval,
+        "keepalives_count": settings.db_keepalives_count,
+    }
+
+engine = create_async_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+    pool_size=settings.db_pool_size,
+    max_overflow=settings.db_max_overflow,
+    pool_timeout=settings.db_pool_timeout,
+    pool_recycle=settings.db_pool_recycle,
+    connect_args=connect_args,
+)
+
+
 # Session factory
 AsyncSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
 
