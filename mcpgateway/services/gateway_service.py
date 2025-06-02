@@ -595,8 +595,6 @@ class GatewayService:
                 Returns:
                     list, list: List of capabilities and tools
                 """
-                if authentication is None:
-                    authentication = {}
                 # Store the context managers so they stay alive
                 decoded_auth = decode_auth(authentication)
 
@@ -613,6 +611,9 @@ class GatewayService:
                         tools = [ToolCreate.model_validate(tool) for tool in tools]
 
                 return capabilities, tools
+            
+            if authentication is None:
+                authentication = {}
 
             capabilities, tools = await connect_to_sse_server(url, authentication)
 
