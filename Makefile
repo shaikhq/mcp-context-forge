@@ -778,7 +778,7 @@ podman-run:
 	podman run --name $(PROJECT_NAME) \
 		--env-file=.env \
 		-p 4444:4444 \
-		--restart=always \
+		--restart=always --memory=$(CONTAINER_MEMORY) --cpus=$(CONTAINER_CPUS) \
 		--health-cmd="curl --fail http://localhost:4444/health || exit 1" \
 		--health-interval=1m --health-retries=3 \
 		--health-start-period=30s --health-timeout=10s \
