@@ -221,11 +221,9 @@ class ResourceService:
         but is currently not implemented.
 
         Args:
-            db (Session): The SQLAlchemy database session.
+            db (AsyncSession): The SQLAlchemy database session.
             include_inactive (bool): If True, include inactive resources in the result.
                 Defaults to False.
-            cursor (Optional[str], optional): An opaque cursor token for pagination. Currently,
-                this parameter is ignored. Defaults to None.
 
         Returns:
             List[ResourceRead]: A list of resources represented as ResourceRead objects.
@@ -255,12 +253,10 @@ class ResourceService:
         but is currently not implemented.
 
         Args:
-            db (Session): The SQLAlchemy database session.
+            db (AsyncSession): The SQLAlchemy database session.
             server_id (int): Server ID
             include_inactive (bool): If True, include inactive resources in the result.
                 Defaults to False.
-            cursor (Optional[str], optional): An opaque cursor token for pagination. Currently,
-                this parameter is ignored. Defaults to None.
 
         Returns:
             List[ResourceRead]: A list of resources represented as ResourceRead objects.
@@ -835,7 +831,7 @@ class ResourceService:
         but is currently not implemented.
 
         Args:
-            db (Session): The SQLAlchemy database session.
+            db (AsyncSession): The SQLAlchemy database session.
             include_inactive (bool): If True, include inactive resource templates in the result.
                 Defaults to False.
 

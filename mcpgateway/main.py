@@ -163,6 +163,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     The function initialises every core service on entry and then
     shuts them down in reverse order on exit.
 
+    Args:
+        app (FastAPI): FastAPI app
+
     Yields:
         None
 
@@ -427,7 +430,7 @@ async def handle_completion(request: Request, db: AsyncSession = Depends(get_db)
 
     Args:
         request (Request): The incoming request with completion data.
-        db (Session): The database session used to interact with the data store.
+        db (AsyncSession): The database session used to interact with the data store.
         user (str): The authenticated user making the request.
 
     Returns:
@@ -445,7 +448,7 @@ async def handle_sampling(request: Request, db: AsyncSession = Depends(get_db), 
 
     Args:
         request (Request): The incoming request with sampling data.
-        db (Session): The database session used to interact with the data store.
+        db (AsyncSession): The database session used to interact with the data store.
         user (str): The authenticated user making the request.
 
     Returns:
@@ -471,7 +474,7 @@ async def list_servers(
 
     Args:
         include_inactive (bool): Whether to include inactive servers in the response.
-        db (Session): The database session used to interact with the data store.
+        db (AsyncSession): The database session used to interact with the data store.
         user (str): The authenticated user making the request.
 
     Returns:
@@ -488,7 +491,7 @@ async def get_server(server_id: int, db: AsyncSession = Depends(get_db), user: s
 
     Args:
         server_id (int): The ID of the server to retrieve.
-        db (Session): The database session used to interact with the data store.
+        db (AsyncSession): The database session used to interact with the data store.
         user (str): The authenticated user making the request.
 
     Returns:
@@ -516,7 +519,7 @@ async def create_server(
 
     Args:
         server (ServerCreate): The data for the new server.
-        db (Session): The database session used to interact with the data store.
+        db (AsyncSession): The database session used to interact with the data store.
         user (str): The authenticated user making the request.
 
     Returns:
@@ -547,7 +550,7 @@ async def update_server(
     Args:
         server_id (int): The ID of the server to update.
         server (ServerUpdate): The updated server data.
-        db (Session): The database session used to interact with the data store.
+        db (AsyncSession): The database session used to interact with the data store.
         user (str): The authenticated user making the request.
 
     Returns:
@@ -580,7 +583,7 @@ async def toggle_server_status(
     Args:
         server_id (int): The ID of the server to toggle.
         activate (bool): Whether to activate or deactivate the server.
-        db (Session): The database session used to interact with the data store.
+        db (AsyncSession): The database session used to interact with the data store.
         user (str): The authenticated user making the request.
 
     Returns:
@@ -605,7 +608,7 @@ async def delete_server(server_id: int, db: AsyncSession = Depends(get_db), user
 
     Args:
         server_id (int): The ID of the server to delete.
-        db (Session): The database session used to interact with the data store.
+        db (AsyncSession): The database session used to interact with the data store.
         user (str): The authenticated user making the request.
 
     Returns:
@@ -722,7 +725,7 @@ async def server_get_tools(
     Args:
         server_id (int): ID of the server
         include_inactive (bool): Whether to include inactive tools in the results.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -750,7 +753,7 @@ async def server_get_resources(
     Args:
         server_id (int): ID of the server
         include_inactive (bool): Whether to include inactive resources in the results.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -778,7 +781,7 @@ async def server_get_prompts(
     Args:
         server_id (int): ID of the server
         include_inactive (bool): Whether to include inactive prompts in the results.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -833,7 +836,7 @@ async def create_tool(tool: ToolCreate, db: AsyncSession = Depends(get_db), user
 
     Args:
         tool (ToolCreate): The data needed to create the tool.
-        db (Session): The database session dependency.
+        db (AsyncSession): The database session dependency.
         user (str): The authenticated user making the request.
 
     Returns:
@@ -905,7 +908,7 @@ async def update_tool(
     Args:
         tool_id (int): The ID of the tool to update.
         tool (ToolUpdate): The updated tool information.
-        db (Session): The database session dependency.
+        db (AsyncSession): The database session dependency.
         user (str): The authenticated user making the request.
 
     Returns:
@@ -928,7 +931,7 @@ async def delete_tool(tool_id: int, db: AsyncSession = Depends(get_db), user: st
 
     Args:
         tool_id (int): The ID of the tool to delete.
-        db (Session): The database session dependency.
+        db (AsyncSession): The database session dependency.
         user (str): The authenticated user making the request.
 
     Returns:
@@ -958,7 +961,7 @@ async def toggle_tool_status(
     Args:
         tool_id (int): The ID of the tool to toggle.
         activate (bool): Whether to activate (`True`) or deactivate (`False`) the tool.
-        db (Session): The database session dependency.
+        db (AsyncSession): The database session dependency.
         user (str): The authenticated user making the request.
 
     Returns:
@@ -992,7 +995,7 @@ async def list_resource_templates(
     List all available resource templates.
 
     Args:
-        db (Session): Database session.
+        db (AsyncSession): Database session.
         user (str): Authenticated user.
 
     Returns:
@@ -1017,7 +1020,7 @@ async def toggle_resource_status(
     Args:
         resource_id (int): The ID of the resource.
         activate (bool): True to activate, False to deactivate.
-        db (Session): Database session.
+        db (AsyncSession): Database session.
         user (str): Authenticated user.
 
     Returns:
@@ -1052,7 +1055,7 @@ async def list_resources(
     Args:
         cursor (Optional[str]): Optional cursor for pagination.
         include_inactive (bool): Whether to include inactive resources.
-        db (Session): Database session.
+        db (AsyncSession): Database session.
         user (str): Authenticated user.
 
     Returns:
@@ -1079,7 +1082,7 @@ async def create_resource(
 
     Args:
         resource (ResourceCreate): Data for the new resource.
-        db (Session): Database session.
+        db (AsyncSession): Database session.
         user (str): Authenticated user.
 
     Returns:
@@ -1105,7 +1108,7 @@ async def read_resource(uri: str, db: AsyncSession = Depends(get_db), user: str 
 
     Args:
         uri (str): URI of the resource.
-        db (Session): Database session.
+        db (AsyncSession): Database session.
         user (str): Authenticated user.
 
     Returns:
@@ -1139,7 +1142,7 @@ async def update_resource(
     Args:
         uri (str): URI of the resource.
         resource (ResourceUpdate): New resource data.
-        db (Session): Database session.
+        db (AsyncSession): Database session.
         user (str): Authenticated user.
 
     Returns:
@@ -1164,7 +1167,7 @@ async def delete_resource(uri: str, db: AsyncSession = Depends(get_db), user: st
 
     Args:
         uri (str): URI of the resource to delete.
-        db (Session): Database session.
+        db (AsyncSession): Database session.
         user (str): Authenticated user.
 
     Returns:
@@ -1273,7 +1276,7 @@ async def create_prompt(
 
     Args:
         prompt (PromptCreate): Payload describing the prompt to create.
-        db (Session): Active SQLAlchemy session.
+        db (AsyncSession): Active SQLAlchemy session.
         user (str): Authenticated username.
 
     Returns:
@@ -1354,7 +1357,7 @@ async def update_prompt(
     Args:
         name (str): Identifier of the prompt to update.
         prompt (PromptUpdate): New prompt content and metadata.
-        db (Session): Active SQLAlchemy session.
+        db (AsyncSession): Active SQLAlchemy session.
         user (str): Authenticated username.
 
     Returns:
@@ -1412,7 +1415,7 @@ async def toggle_gateway_status(
     Args:
         gateway_id (int): Numeric ID of the gateway to toggle.
         activate (bool): ``True`` to activate, ``False`` to deactivate.
-        db (Session): Active SQLAlchemy session.
+        db (AsyncSession): Active SQLAlchemy session.
         user (str): Authenticated username.
 
     Returns:
@@ -1627,7 +1630,7 @@ async def handle_rpc(request: Request, db: AsyncSession = Depends(get_db), user:
 
     Args:
         request (Request): The incoming FastAPI request.
-        db (Session): Database session.
+        db (AsyncSession): Database session.
         user (str): The authenticated user.
 
     Returns:

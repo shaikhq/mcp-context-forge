@@ -155,7 +155,7 @@ class ToolService:
         into the database. The metric is then committed to the database.
 
         Args:
-            db (Session): The SQLAlchemy database session.
+            db (AsyncSession): The SQLAlchemy database session.
             tool (DbTool): The tool that was invoked.
             start_time (float): The monotonic start time of the invocation.
             success (bool): True if the invocation succeeded; otherwise, False.
@@ -244,7 +244,7 @@ class ToolService:
         Retrieve a list of registered tools from the database.
 
         Args:
-            db (Session): The SQLAlchemy database session.
+            db (AsyncSession): The SQLAlchemy database session.
             include_inactive (bool): If True, include inactive tools in the result.
                 Defaults to False.
             cursor (Optional[str], optional): An opaque cursor token for pagination. Currently,
@@ -273,7 +273,7 @@ class ToolService:
         Retrieve a list of registered tools from the database.
 
         Args:
-            db (Session): The SQLAlchemy database session.
+            db (AsyncSession): The SQLAlchemy database session.
             server_id (int): Server ID
             include_inactive (bool): If True, include inactive tools in the result.
                 Defaults to False.
@@ -579,9 +579,15 @@ class ToolService:
                 else:
                     headers = {}
 
-                async def connect_to_sse_server(server_url: str):
+                async def connect_to_sse_server(server_url: str) -> str:
                     """
                     Connect to an MCP server running with SSE transport
+
+                    Args:
+                        server_url: Server URL
+
+                    Returns:
+                        str: Tool result
                     """
                     # Use async with directly to manage the context
                     async with sse_client(url=server_url, headers=headers) as streams:
@@ -916,7 +922,7 @@ class ToolService:
         Otherwise, all tool metrics will be deleted (global reset).
 
         Args:
-            db (Session): The SQLAlchemy database session.
+            db (AsyncSession): The SQLAlchemy database session.
             tool_id (Optional[int]): Specific tool ID to reset metrics for.
         """
 

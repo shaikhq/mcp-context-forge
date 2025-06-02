@@ -151,7 +151,7 @@ class ServerService:
         7. Notifies subscribers of the addition and returns the validated response.
 
         Args:
-            db (Session): The SQLAlchemy database session.
+            db (AsyncSession): The SQLAlchemy database session.
             server_in (ServerCreate): The server creation schema containing server details and lists of
                 associated tool, resource, and prompt IDs (as strings).
 

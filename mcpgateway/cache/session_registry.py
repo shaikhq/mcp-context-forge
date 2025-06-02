@@ -133,10 +133,14 @@ class SessionRegistry(SessionBackend):
         Raises:
             ValueError: If backend is invalid or required URL is missing
         """
-        super().__init__(backend=backend, redis_url=redis_url, database_url=database_url, session_ttl=session_ttl, message_ttl=message_ttl)
-        self._sessions: Dict[str, Any] = {}  # Local transport cache
-        self._lock = asyncio.Lock()
-        self._cleanup_task = None
+        try:
+            super().__init__(backend=backend, redis_url=redis_url, database_url=database_url, session_ttl=session_ttl, message_ttl=message_ttl)
+            self._sessions: Dict[str, Any] = {}  # Local transport cache
+            self._lock = asyncio.Lock()
+            self._cleanup_task = None
+        except ValueError as ex:
+            logger.error("Error initializing session registry: %s", ex)
+            raise
 
     async def initialize(self) -> None:
         """Initialize the registry with async setup.

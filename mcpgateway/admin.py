@@ -90,7 +90,7 @@ async def admin_list_servers(
 
     Args:
         include_inactive (bool): Whether to include inactive servers.
-        db (Session): The database session dependency.
+        db (AsyncSession): The database session dependency.
         user (str): The authenticated user dependency.
 
     Returns:
@@ -108,7 +108,7 @@ async def admin_get_server(server_id: int, db: AsyncSession = Depends(get_db), u
 
     Args:
         server_id (int): The ID of the server to retrieve.
-        db (Session): The database session dependency.
+        db (AsyncSession): The database session dependency.
         user (str): The authenticated user dependency.
 
     Returns:
@@ -144,7 +144,7 @@ async def admin_add_server(request: Request, db: AsyncSession = Depends(get_db),
 
     Args:
         request (Request): FastAPI request containing form data.
-        db (Session): Database session dependency
+        db (AsyncSession): Database session dependency
         user (str): Authenticated user dependency
 
     Returns:
@@ -197,7 +197,7 @@ async def admin_edit_server(
     Args:
         server_id (int): The ID of the server to edit
         request (Request): FastAPI request containing form data
-        db (Session): Database session dependency
+        db (AsyncSession): Database session dependency
         user (str): Authenticated user dependency
 
     Returns:
@@ -243,7 +243,7 @@ async def admin_toggle_server(
     Args:
         server_id (int): The ID of the server whose status to toggle.
         request (Request): FastAPI request containing form data with the 'activate' field.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -273,7 +273,7 @@ async def admin_delete_server(server_id: int, request: Request, db: AsyncSession
     Args:
         server_id (int): The ID of the server to delete
         request (Request): FastAPI request object (not used but required by route signature).
-        db (Session): Database session dependency
+        db (AsyncSession): Database session dependency
         user (str): Authenticated user dependency
 
     Returns:
@@ -305,7 +305,7 @@ async def admin_list_resources(
 
     Args:
         include_inactive (bool): Whether to include inactive resources in the results.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -331,7 +331,7 @@ async def admin_list_prompts(
 
     Args:
         include_inactive (bool): Whether to include inactive prompts in the results.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -357,7 +357,7 @@ async def admin_list_gateways(
 
     Args:
         include_inactive (bool): Whether to include inactive gateways in the results.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -385,7 +385,7 @@ async def admin_toggle_gateway(
     Args:
         gateway_id (int): The ID of the gateway to toggle.
         request (Request): The FastAPI request object containing form data.
-        db (Session): The database session dependency.
+        db (AsyncSession): The database session dependency.
         user (str): The authenticated user dependency.
 
     Returns:
@@ -425,7 +425,7 @@ async def admin_ui(
     Args:
         request (Request): FastAPI request object.
         include_inactive (bool): Whether to include inactive items in all listings.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user from basic auth dependency.
         jwt_token (str): JWT token for authentication.
 
@@ -474,7 +474,7 @@ async def admin_list_tools(
 
     Args:
         include_inactive (bool): Whether to include inactive tools in the results.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -496,7 +496,7 @@ async def admin_get_tool(tool_id: int, db: AsyncSession = Depends(get_db), user:
 
     Args:
         tool_id (int): The ID of the tool to retrieve.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -537,7 +537,7 @@ async def admin_add_tool(
 
     Args:
         request (Request): the FastAPI request object containing the form data.
-        db (Session): the SQLAlchemy database session.
+        db (AsyncSession): the SQLAlchemy database session.
         user (str): identifier of the authenticated user.
 
     Returns:
@@ -613,7 +613,7 @@ async def admin_edit_tool(
     Args:
         tool_id (int): The ID of the tool to edit.
         request (Request): FastAPI request containing form data.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -664,7 +664,7 @@ async def admin_delete_tool(tool_id: int, request: Request, db: AsyncSession = D
     Args:
         tool_id (int): The ID of the tool to delete.
         request (Request): FastAPI request object (not used directly, but required by route signature).
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -696,7 +696,7 @@ async def admin_toggle_tool(
     Args:
         tool_id (int): The ID of the tool whose status to toggle.
         request (Request): FastAPI request containing form data with the 'activate' field.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -721,7 +721,7 @@ async def admin_get_gateway(gateway_id: int, db: AsyncSession = Depends(get_db),
 
     Args:
         gateway_id: Gateway ID.
-        db: Database session.
+        db (AsyncSession): Database session.
         user: Authenticated user.
 
     Returns:
@@ -743,7 +743,7 @@ async def admin_add_gateway(request: Request, db: AsyncSession = Depends(get_db)
 
     Args:
         request: FastAPI request containing form data.
-        db: Database session.
+        db (AsyncSession): Database session.
         user: Authenticated user.
 
     Returns:
@@ -785,7 +785,7 @@ async def admin_edit_gateway(
     Args:
         gateway_id: Gateway ID.
         request: FastAPI request containing form data.
-        db: Database session.
+        db (AsyncSession): Database session.
         user: Authenticated user.
 
     Returns:
@@ -822,7 +822,7 @@ async def admin_delete_gateway(gateway_id: int, request: Request, db: AsyncSessi
     Args:
         gateway_id (int): The ID of the gateway to delete.
         request (Request): FastAPI request object (not used directly but required by the route signature).
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -842,7 +842,7 @@ async def admin_get_resource(uri: str, db: AsyncSession = Depends(get_db), user:
 
     Args:
         uri: Resource URI.
-        db: Database session.
+        db (AsyncSession): Database session.
         user: Authenticated user.
 
     Returns:
@@ -867,7 +867,7 @@ async def admin_add_resource(request: Request, db: AsyncSession = Depends(get_db
 
     Args:
         request: FastAPI request containing form data.
-        db: Database session.
+        db (AsyncSession): Database session.
         user: Authenticated user.
 
     Returns:
@@ -907,7 +907,7 @@ async def admin_edit_resource(
     Args:
         uri: Resource URI.
         request: FastAPI request containing form data.
-        db: Database session.
+        db (AsyncSession): Database session.
         user: Authenticated user.
 
     Returns:
@@ -939,7 +939,7 @@ async def admin_delete_resource(uri: str, request: Request, db: AsyncSession = D
     Args:
         uri (str): The URI of the resource to delete.
         request (Request): FastAPI request object (not used directly but required by the route signature).
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -971,7 +971,7 @@ async def admin_toggle_resource(
     Args:
         resource_id (int): The ID of the resource whose status to toggle.
         request (Request): FastAPI request containing form data with the 'activate' field.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -996,7 +996,7 @@ async def admin_get_prompt(name: str, db: AsyncSession = Depends(get_db), user: 
 
     Args:
         name: Prompt name.
-        db: Database session.
+        db (AsyncSession): Database session.
         user: Authenticated user.
 
     Returns:
@@ -1021,7 +1021,7 @@ async def admin_add_prompt(request: Request, db: AsyncSession = Depends(get_db),
 
     Args:
         request: FastAPI request containing form data.
-        db: Database session.
+        db (AsyncSession): Database session.
         user: Authenticated user.
 
     Returns:
@@ -1061,7 +1061,7 @@ async def admin_edit_prompt(
     Args:
         name: Prompt name.
         request: FastAPI request containing form data.
-        db: Database session.
+        db (AsyncSession): Database session.
         user: Authenticated user.
 
     Returns:
@@ -1095,7 +1095,7 @@ async def admin_delete_prompt(name: str, request: Request, db: AsyncSession = De
     Args:
         name (str): The name of the prompt to delete.
         request (Request): FastAPI request object (not used directly but required by the route signature).
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -1127,7 +1127,7 @@ async def admin_toggle_prompt(
     Args:
         prompt_id (int): The ID of the prompt whose status to toggle.
         request (Request): FastAPI request containing form data with the 'activate' field.
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -1215,7 +1215,7 @@ async def admin_get_metrics(
     and analysis purposes.
 
     Args:
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
@@ -1245,7 +1245,7 @@ async def admin_reset_metrics(db: AsyncSession = Depends(get_db), user: str = De
     Each service must implement its own reset_metrics method.
 
     Args:
-        db (Session): Database session dependency.
+        db (AsyncSession): Database session dependency.
         user (str): Authenticated user dependency.
 
     Returns:
