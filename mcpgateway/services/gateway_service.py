@@ -31,7 +31,7 @@ from mcpgateway.config import settings
 from mcpgateway.db import Gateway as DbGateway, AsyncSessionLocal
 from mcpgateway.db import Tool as DbTool
 from mcpgateway.schemas import GatewayCreate, GatewayRead, GatewayUpdate, ToolCreate
-from mcpgateway.services.tool_service import ToolService
+from mcpgateway.services.tool_service import ToolService, ToolRead, ToolNameConflictError, ToolError
 from mcpgateway.utils.services_auth import decode_auth
 
 logger = logging.getLogger(__name__)
@@ -110,6 +110,71 @@ class GatewayService:
         self._active_gateways.clear()
         logger.info("Gateway service shutdown complete")
 
+    async def register_tool(self, db: AsyncSession, tool: ToolCreate) -> ToolRead:
+        """Register a new tool.
+
+        Args:
+            db: Database session.
+            tool: Tool creation schema.
+
+        Returns:
+            Created tool information.
+
+        Raises:
+            ToolNameConflictError: If tool name already exists.
+            ToolError: For other tool registration errors.
+        """
+        try:
+            stmt = (
+                select(DbTool)
+                .where(DbTool.name == tool.name)
+                .options(
+                    selectinload(DbTool.gateway),
+                    selectinload(DbTool.servers),
+                    selectinload(DbTool.federated_with),
+                    selectinload(DbTool.metrics),
+                )
+            )
+            result = await db.execute(stmt)
+            existing_tool = result.scalar_one_or_none()
+            if existing_tool:
+                raise ToolNameConflictError(
+                    tool.name,
+                    is_active=existing_tool.is_active,
+                    tool_id=existing_tool.id,
+                )
+
+            if tool.auth is None:
+                auth_type = None
+                auth_value = None
+            else:
+                auth_type = tool.auth.auth_type
+                auth_value = tool.auth.auth_value
+
+            db_tool = DbTool(
+                name=tool.name,
+                url=str(tool.url),
+                description=tool.description,
+                integration_type=tool.integration_type,
+                request_type=tool.request_type,
+                headers=tool.headers,
+                input_schema=tool.input_schema,
+                jsonpath_filter=tool.jsonpath_filter,
+                auth_type=auth_type,
+                auth_value=auth_value,
+                gateway_id=tool.gateway_id,
+            )
+            db.add(db_tool)
+            await self.tool_service._notify_tool_added(db_tool)
+            logger.info(f"Registered tool: {tool.name}")
+            return db_tool
+        except IntegrityError:
+            await db.rollback()
+            raise ToolError(f"Tool already exists: {tool.name}")
+        except Exception as e:
+            await db.rollback()
+            raise ToolError(f"Failed to register tool: {str(e)}")
+
     async def register_gateway(self, db: AsyncSession, gateway: GatewayCreate) -> GatewayRead:
         """Register a new gateway.
 
@@ -161,7 +226,7 @@ class GatewayService:
 
             # Add to DB
             db.add(db_gateway)
-            await db.commit()
+            await db.flush()
             await db.refresh(db_gateway)
 
             # Update tracking
@@ -187,13 +252,29 @@ class GatewayService:
 
             inserted_gateway_id = inserted_gateway.id
 
-            logger.info(f"Registered gateway: {gateway.name}")
+            logger.info(f"Registering {len(tools)} tools for gateway: {gateway.name}")
 
             for tool in tools:
                 tool.gateway_id = inserted_gateway_id
-                await self.tool_service.register_tool(db=db, tool=tool)
 
-            return GatewayRead.model_validate(gateway)
+            tool_registration_tasks = [
+                self.register_tool(db=db, tool=tool) for tool in tools
+            ]
+
+            db_tools = []
+            if tool_registration_tasks:
+                db_tools = await asyncio.gather(*tool_registration_tasks)
+
+            await db.commit()
+
+            if len(db_tools) > 0:
+                for db_tool in db_tools:
+                    await db.refresh(db_tool, attribute_names=['servers', 'metrics', 'gateway', 'federated_with'])
+                    self.tool_service._convert_tool_to_read(db_tool)
+
+            await db.refresh(db_gateway)
+
+            return GatewayRead.model_validate(db_gateway)
 
         except IntegrityError:
             await db.rollback()

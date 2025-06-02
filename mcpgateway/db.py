@@ -19,6 +19,7 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import logging
+import asyncio
 
 import jsonschema
 from sqlalchemy import (
@@ -63,7 +64,10 @@ engine = create_async_engine(
 )
 
 # Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+AsyncSessionLocal = sessionmaker(
+    autocommit=False, autoflush=False, bind=engine, class_=AsyncSession
+)
+
 
 
 class Base(DeclarativeBase):
@@ -1025,12 +1029,6 @@ listen(Prompt, "before_insert", validate_prompt_schema)
 listen(Prompt, "before_update", validate_prompt_schema)
 
 
-engine = create_async_engine(settings.database_url, echo=True)
-AsyncSessionLocal = sessionmaker(
-    autocommit=False, autoflush=False, bind=engine, class_=AsyncSession
-)
-
-
 # Database dependency
 async def get_db() -> AsyncSession:
     """
@@ -1067,3 +1065,8 @@ async def init_db():
     except SQLAlchemyError as e:
         logger.error(f"Failed to initialize database: {str(e)}", exc_info=True)
         raise Exception(f"Failed to initialize database: {str(e)}")
+    finally:
+        await engine.dispose()
+
+if __name__ == "__main__":
+    asyncio.run(init_db())
