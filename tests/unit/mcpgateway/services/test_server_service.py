@@ -112,7 +112,7 @@ class TestServerService:
         test_db.commit = Mock()
         test_db.refresh = Mock()
 
-        # Set up await db.get to return associated objects
+        # Set up DB.get to return associated objects
         test_db.get = Mock(
             side_effect=lambda cls, id: {
                 (DbTool, 101): mock_tool,
@@ -199,7 +199,7 @@ class TestServerService:
         mock_scalar.scalar_one_or_none.return_value = None
         test_db.execute = Mock(return_value=mock_scalar)
 
-        # Set up await db.get to return None for tool (not found)
+        # Set up DB.get to return None for tool (not found)
         test_db.get = Mock(return_value=None)
         test_db.rollback = Mock()
 

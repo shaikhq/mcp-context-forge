@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import AsyncSession, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from mcpgateway.config import Settings
 from mcpgateway.db import Base
@@ -52,7 +52,7 @@ def test_db(test_engine):
     try:
         yield db
     finally:
-        await db.close()
+        db.close()
 
 
 @pytest.fixture

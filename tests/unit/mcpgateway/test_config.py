@@ -18,7 +18,7 @@ def test_settings_default_values():
     assert settings.app_name == "MCP Gateway"
     assert settings.host == "0.0.0.0"
     assert settings.port == 4444
-    assert settings.database_url == "sqlite+aiosqlite:///./mcp.db"
+    assert settings.database_url == "sqlite:///./mcp.db"
     assert settings.basic_auth_user == "admin"
     assert settings.basic_auth_password == "changeme"
     assert settings.auth_required is True
