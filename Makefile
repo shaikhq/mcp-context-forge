@@ -828,7 +828,7 @@ podman-dev:
 podman:
 	@echo "🦭  Building container using ubi9-minimal…"
 	podman build --ssh default --platform=linux/amd64 --squash \
-				 --cgroup-manager=cgroupfs \
+				#  --cgroup-manager=cgroupfs \
 	             -t $(IMG_PROD) .
 	podman images $(IMG_PROD)
 
