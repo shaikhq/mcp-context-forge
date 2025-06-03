@@ -77,6 +77,7 @@ if backend == "postgresql" and driver in ("psycopg2", "default", ""):
         keepalives_idle=30,  # seconds of idleness before first probe
         keepalives_interval=5,  # seconds between probes
         keepalives_count=5,  # drop the link after N failed probes
+        ssl=True,
     )
 
 # ---------------------------------------------------------------------------
@@ -91,28 +92,6 @@ elif backend == "sqlite":
 # ---------------------------------------------------------------------------
 # 5. Build the Engine with a single, clean connect_args mapping.
 # ---------------------------------------------------------------------------
-engine = create_async_engine(
-    settings.database_url,
-    pool_pre_ping=True,  # quick liveness check per checkout
-    pool_size=settings.db_pool_size,
-    max_overflow=settings.db_max_overflow,
-    pool_timeout=settings.db_pool_timeout,
-    pool_recycle=settings.db_pool_recycle,
-    connect_args=connect_args,
-)
-
-if settings.database_url.startswith("sqlite"):
-    connect_args = {
-        "check_same_thread": False,
-    }
-else:
-    connect_args = {
-        "keepalives": settings.db_keepalives,
-        "keepalives_idle": settings.db_keepalives_idle,
-        "keepalives_interval": settings.db_keepalives_interval,
-        "keepalives_count": settings.db_keepalives_count,
-    }
-
 engine = create_async_engine(
     settings.database_url,
     pool_pre_ping=True,

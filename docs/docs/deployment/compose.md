@@ -83,7 +83,7 @@ Uncomment one service block in `podman-compose.yml` and align `DATABASE_URL`:
 
 | Service block         | Connection string                             |
 | --------------------- | --------------------------------------------- |
-| `postgres:` (default) | `postgresql://postgres:...@postgres:5432/mcp` |
+| `postgres:` (default) | `postgresql+asyncpg://postgres:...@postgres:5432/mcp` |
 | `mariadb:`            | `mysql+pymysql://admin:...@mariadb:3306/mcp`  |
 | `mysql:`              | `mysql+pymysql://mysql:...@mysql:3306/mcp`    |
 | `mongodb:`            | `mongodb://admin:...@mongodb:27017/mcp`       |
