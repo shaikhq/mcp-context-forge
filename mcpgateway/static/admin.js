@@ -1579,7 +1579,15 @@ async function runToolTest() {
   const formData = new FormData(form);
   const params = {};
   for (const [key, value] of formData.entries()) {
-    params[key] = value;
+    if(isNaN(value)) {
+      if(value.toLowerCase() ===  "true" || value.toLowerCase() === "false") {
+        params[key] = Boolean(value.toLowerCase() ===  "true");
+      } else {
+        params[key] = value;
+      }
+    } else {
+      params[key] = Number(value);
+    }
   }
 
   // Build the JSON-RPC payload using the tool's name as the method
