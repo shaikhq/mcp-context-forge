@@ -618,6 +618,7 @@ class GatewayService:
             True if gateway is healthy
         """
         if not gateway.is_active:
+            logger.warning(f"Gateway {gateway.name} is unhealthy")
             return False
 
         try:
@@ -740,14 +741,10 @@ class GatewayService:
                     result = await db.execute(select(DbGateway).where(DbGateway.is_active))
                     gateways = result.scalars().all()
 
-                    # Check each gateway
-                    for gateway in gateways:
-                        try:
-                            is_healthy = await self.check_gateway_health(gateway)
-                            if not is_healthy:
-                                logger.warning(f"Gateway {gateway.name} is unhealthy")
-                        except Exception as e:
-                            logger.error(f"Health check failed for {gateway.name}: {str(e)}")
+                    await asyncio.gather(*[
+                        self.check_gateway_health(gateway)
+                        for gateway in gateways
+                    ])
 
                     await db.commit()
 
