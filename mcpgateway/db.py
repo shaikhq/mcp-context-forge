@@ -20,6 +20,7 @@ import logging
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+import ssl
 
 import jsonschema
 from sqlalchemy import (
@@ -62,6 +63,13 @@ url = make_url(settings.database_url)
 backend = url.get_backend_name()  # e.g. 'postgresql', 'sqlite'
 driver = url.get_driver_name() or "default"
 
+# Ensure driver is explicitly set in URL
+if backend == "postgresql" and driver != "asyncpg":
+    raise ValueError("Use 'postgresql+asyncpg://' URL for async PostgreSQL")
+elif backend == "sqlite" and driver != "aiosqlite":
+    raise ValueError("Use 'sqlite+aiosqlite://' URL for async SQLite")
+
+
 # Start with an empty dict and add options only when the driver can accept
 # them; this prevents unexpected TypeError at connect time.
 connect_args: dict[str, object] = {}
@@ -71,19 +79,16 @@ connect_args: dict[str, object] = {}
 #    The keep-alive parameters below are recognised exclusively by libpq /
 #    psycopg2 and let the kernel detect broken network links quickly.
 # ---------------------------------------------------------------------------
-if backend == "postgresql" and driver in ("psycopg2", "default", ""):
+if backend == "postgresql" and driver in ("psycopg2", "asyncpg", "default", ""):
+    ssl_context = ssl._create_unverified_context()
     connect_args.update(
-        keepalives=1,  # enable TCP keep-alive probes
-        keepalives_idle=30,  # seconds of idleness before first probe
-        keepalives_interval=5,  # seconds between probes
-        keepalives_count=5,  # drop the link after N failed probes
-        ssl=True,
+        ssl=ssl_context,
     )
 
 # ---------------------------------------------------------------------------
 # 3. SQLite (optional) – only one extra flag and it is *SQLite-specific*.
 # ---------------------------------------------------------------------------
-elif backend == "sqlite":
+elif backend in ["sqlite", "aiosqlite"]:
     # Allow pooled connections to hop across threads.
     connect_args["check_same_thread"] = False
 
@@ -139,24 +144,24 @@ prompt_gateway_table = Table(
 server_tool_association = Table(
     "server_tool_association",
     Base.metadata,
-    Column("server_id", Integer, ForeignKey("servers.id"), primary_key=True),
-    Column("tool_id", Integer, ForeignKey("tools.id"), primary_key=True),
+    Column("server_id", Integer, ForeignKey("servers.id", ondelete="CASCADE"), primary_key=True),
+    Column("tool_id", Integer, ForeignKey("tools.id", ondelete="CASCADE"), primary_key=True),
 )
 
 # Association table for servers and resources
 server_resource_association = Table(
     "server_resource_association",
     Base.metadata,
-    Column("server_id", Integer, ForeignKey("servers.id"), primary_key=True),
-    Column("resource_id", Integer, ForeignKey("resources.id"), primary_key=True),
+    Column("server_id", Integer, ForeignKey("servers.id", ondelete="CASCADE"), primary_key=True),
+    Column("resource_id", Integer, ForeignKey("resources.id", ondelete="CASCADE"), primary_key=True),
 )
 
 # Association table for servers and prompts
 server_prompt_association = Table(
     "server_prompt_association",
     Base.metadata,
-    Column("server_id", Integer, ForeignKey("servers.id"), primary_key=True),
-    Column("prompt_id", Integer, ForeignKey("prompts.id"), primary_key=True),
+    Column("server_id", Integer, ForeignKey("servers.id", ondelete="CASCADE"), primary_key=True),
+    Column("prompt_id", Integer, ForeignKey("prompts.id", ondelete="CASCADE"), primary_key=True),
 )
 
 
@@ -323,7 +328,7 @@ class Tool(Base):
     federated_with = relationship("Gateway", secondary=tool_gateway_table, back_populates="federated_tools")
 
     # Many-to-many relationship with Servers
-    servers = relationship("Server", secondary=server_tool_association, back_populates="tools")
+    servers = relationship("Server", secondary=server_tool_association, back_populates="tools", passive_deletes=True, lazy="select")
 
     # Relationship with ToolMetric records
     metrics: Mapped[List["ToolMetric"]] = relationship("ToolMetric", back_populates="tool", cascade="all, delete-orphan")
@@ -502,7 +507,7 @@ class Resource(Base):
     federated_with = relationship("Gateway", secondary=resource_gateway_table, back_populates="federated_resources")
 
     # Many-to-many relationship with Servers
-    servers = relationship("Server", secondary=server_resource_association, back_populates="resources")
+    servers = relationship("Server", secondary=server_resource_association, back_populates="resources", passive_deletes=True, lazy="select")
 
     @property
     def content(self) -> ResourceContent:
@@ -683,7 +688,7 @@ class Prompt(Base):
     federated_with = relationship("Gateway", secondary=prompt_gateway_table, back_populates="federated_prompts")
 
     # Many-to-many relationship with Servers
-    servers = relationship("Server", secondary=server_prompt_association, back_populates="prompts")
+    servers = relationship("Server", secondary=server_prompt_association, back_populates="prompts", passive_deletes=True, lazy="select")
 
     def validate_arguments(self, args: Dict[str, str]) -> None:
         """
@@ -828,9 +833,9 @@ class Server(Base):
     metrics: Mapped[List["ServerMetric"]] = relationship("ServerMetric", back_populates="server", cascade="all, delete-orphan")
 
     # Many-to-many relationships for associated items
-    tools = relationship("Tool", secondary=server_tool_association, back_populates="servers")
-    resources = relationship("Resource", secondary=server_resource_association, back_populates="servers")
-    prompts = relationship("Prompt", secondary=server_prompt_association, back_populates="servers")
+    tools = relationship("Tool", secondary=server_tool_association, back_populates="servers", passive_deletes=True, lazy="select")
+    resources = relationship("Resource", secondary=server_resource_association, back_populates="servers", passive_deletes=True, lazy="select")
+    prompts = relationship("Prompt", secondary=server_prompt_association, back_populates="servers",  passive_deletes=True, lazy="select")
 
     @property
     def execution_count(self) -> int:

@@ -228,7 +228,20 @@ class ToolService:
             )
             db.add(db_tool)
             await db.commit()
-            await db.refresh(db_tool)
+            
+            stmt = (
+                select(DbTool)
+                .where(DbTool.name == tool.name)
+                .options(
+                    selectinload(DbTool.gateway),
+                    selectinload(DbTool.servers),
+                    selectinload(DbTool.federated_with),
+                    selectinload(DbTool.metrics),
+                )
+            )
+            result = await db.execute(stmt)
+            tool = result.scalar_one_or_none()
+
             await self._notify_tool_added(db_tool)
             logger.info(f"Registered tool: {tool.name}")
             return self._convert_tool_to_read(db_tool)
@@ -348,7 +361,7 @@ class ToolService:
             if not tool:
                 raise ToolNotFoundError(f"Tool not found: {tool_id}")
             tool_info = {"id": tool.id, "name": tool.name}
-            db.delete(tool)
+            await db.delete(tool)
             await db.commit()
             await self._notify_tool_deleted(tool_info)
             logger.info(f"Permanently deleted tool: {tool_info['name']}")
@@ -379,7 +392,18 @@ class ToolService:
                 tool.is_active = activate
                 tool.updated_at = datetime.utcnow()
                 await db.commit()
-                await db.refresh(tool)
+                stmt = (
+                    select(DbTool)
+                    .where(DbTool.id == tool_id)
+                    .options(
+                        selectinload(DbTool.gateway),
+                        selectinload(DbTool.servers),
+                        selectinload(DbTool.federated_with),
+                        selectinload(DbTool.metrics),
+                    )
+                )
+                result = await db.execute(stmt)
+                tool = result.scalar_one_or_none()
                 if activate:
                     await self._notify_tool_activated(tool)
                 else:
@@ -686,7 +710,20 @@ class ToolService:
 
             tool.updated_at = datetime.utcnow()
             await db.commit()
-            await db.refresh(tool)
+
+            stmt = (
+                select(DbTool)
+                .where(DbTool.id == tool_id)
+                .options(
+                    selectinload(DbTool.gateway),
+                    selectinload(DbTool.servers),
+                    selectinload(DbTool.federated_with),
+                    selectinload(DbTool.metrics),
+                )
+            )
+            result = await db.execute(stmt)
+            tool = result.scalar_one_or_none()
+
             await self._notify_tool_updated(tool)
             logger.info(f"Updated tool: {tool.name}")
             return self._convert_tool_to_read(tool)

@@ -176,6 +176,9 @@ class ServerService:
                 description=server_in.description,
                 icon=server_in.icon,
                 is_active=True,
+                tools=[],
+                prompts=[],
+                resources=[],
             )
             db.add(db_server)
 
@@ -185,6 +188,7 @@ class ServerService:
                     if tool_id.strip() == "":
                         continue
                     tool_obj = await db.get(DbTool, int(tool_id))
+
                     if not tool_obj:
                         raise ServerError(f"Tool with id {tool_id} does not exist.")
                     db_server.tools.append(tool_obj)
@@ -209,11 +213,19 @@ class ServerService:
                         raise ServerError(f"Prompt with id {prompt_id} does not exist.")
                     db_server.prompts.append(prompt_obj)
 
-            # Commit the new record and refresh.
+            # Commit the new record.
             await db.commit()
-            await db.refresh(db_server)
-            # Force load the relationship attributes.
-            _ = db_server.tools, db_server.resources, db_server.prompts
+            result = await db.execute(
+                select(DbServer)
+                .options(
+                    selectinload(DbServer.tools),
+                    selectinload(DbServer.resources),
+                    selectinload(DbServer.prompts),
+                    selectinload(DbServer.metrics)
+                )
+                .where(DbServer.name == server_in.name)
+            )
+            db_server = result.scalar_one_or_none()
 
             # Assemble response data with associated item IDs.
             server_data = {
@@ -230,7 +242,7 @@ class ServerService:
             }
             logger.debug(f"Server Data: {server_data}")
             await self._notify_server_added(db_server)
-            logger.info(f"Registered server: {server_in.name}")
+            logger.info(f"Registered server: {db_server.name}")
             return self._convert_server_to_read(db_server)
         except IntegrityError:
             await db.rollback()
@@ -383,9 +395,18 @@ class ServerService:
 
             server.updated_at = datetime.utcnow()
             await db.commit()
-            await db.refresh(server)
-            # Force loading relationships
-            _ = server.tools, server.resources, server.prompts
+            stmt = (
+                select(DbServer)
+                .where(DbServer.id == server_id)
+                .options(
+                    selectinload(DbServer.tools),
+                    selectinload(DbServer.prompts),
+                    selectinload(DbServer.resources),
+                    selectinload(DbServer.metrics),
+                )
+            )
+            result = await db.execute(stmt)
+            server = result.scalar_one_or_none()
 
             await self._notify_server_updated(server)
             logger.info(f"Updated server: {server.name}")
@@ -433,7 +454,19 @@ class ServerService:
                 server.is_active = activate
                 server.updated_at = datetime.utcnow()
                 await db.commit()
-                await db.refresh(server)
+                stmt = (
+                    select(DbServer)
+                    .where(DbServer.id == server_id)
+                    .options(
+                        selectinload(DbServer.tools),
+                        selectinload(DbServer.prompts),
+                        selectinload(DbServer.resources),
+                        selectinload(DbServer.metrics),
+                    )
+                )
+                result = await db.execute(stmt)
+                server = result.scalar_one_or_none()
+
                 if activate:
                     await self._notify_server_activated(server)
                 else:
@@ -471,14 +504,15 @@ class ServerService:
         """
         try:
             server = await db.get(DbServer, server_id)
+
             if not server:
                 raise ServerNotFoundError(f"Server not found: {server_id}")
 
             server_info = {"id": server.id, "name": server.name}
-            db.delete(server)
+            await db.delete(server)
             await db.commit()
 
-            await self._notify_server_deleted(server_info)
+            # await self._notify_server_deleted(server_info)
             logger.info(f"Deleted server: {server_info['name']}")
         except Exception as e:
             await db.rollback()

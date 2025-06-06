@@ -233,14 +233,6 @@ class GatewayService:
             # Add to DB
             db.add(db_gateway)
             await db.flush()
-            await db.refresh(db_gateway)
-
-            # Update tracking
-            self._active_gateways.add(gateway.url)
-
-            # Notify subscribers
-            await self._notify_gateway_added(db_gateway)
-
             stmt = (
                 select(DbGateway)
                 .where(DbGateway.name == gateway.name)
@@ -254,9 +246,15 @@ class GatewayService:
                 )
             )
             result = await db.execute(stmt)
-            inserted_gateway = result.scalar_one_or_none()
+            db_gateway = result.scalar_one_or_none()
 
-            inserted_gateway_id = inserted_gateway.id
+            # Update tracking
+            self._active_gateways.add(gateway.url)
+
+            # Notify subscribers
+            await self._notify_gateway_added(db_gateway)
+
+            inserted_gateway_id = db_gateway.id
 
             logger.info(f"Registering {len(tools)} tools for gateway: {gateway.name}")
 
@@ -380,7 +378,20 @@ class GatewayService:
 
             gateway.updated_at = datetime.utcnow()
             await db.commit()
-            await db.refresh(gateway)
+            stmt = (
+                select(DbGateway)
+                .where(DbGateway.id == gateway_id)
+                .options(
+                    selectinload(DbGateway.tools),
+                    selectinload(DbGateway.prompts),
+                    selectinload(DbGateway.resources),
+                    selectinload(DbGateway.federated_tools),
+                    selectinload(DbGateway.federated_resources),
+                    selectinload(DbGateway.federated_prompts),
+                )
+            )
+            result = await db.execute(stmt)
+            gateway = result.scalar_one_or_none()
 
             # Notify subscribers
             await self._notify_gateway_updated(gateway)
@@ -446,7 +457,7 @@ class GatewayService:
                     # Try to initialize if activating
                     try:
                         capabilities, tools = await self._initialize_gateway(gateway.url, gateway.auth_value)
-                        gateway.capabilities = capabilities.dict()
+                        gateway.capabilities = capabilities
                         gateway.last_seen = datetime.utcnow()
                     except Exception as e:
                         logger.warning(f"Failed to initialize reactivated gateway: {e}")
@@ -454,10 +465,24 @@ class GatewayService:
                     self._active_gateways.discard(gateway.url)
 
                 await db.commit()
-                await db.refresh(gateway)
+                stmt = (
+                    select(DbGateway)
+                    .where(DbGateway.id == gateway_id)
+                    .options(
+                        selectinload(DbGateway.tools),
+                        selectinload(DbGateway.prompts),
+                        selectinload(DbGateway.resources),
+                        selectinload(DbGateway.federated_tools),
+                        selectinload(DbGateway.federated_resources),
+                        selectinload(DbGateway.federated_prompts),
+                    )
+                )
+                result = await db.execute(stmt)
+                gateway = result.scalar_one_or_none()
 
-                result = await db.query(DbTool).filter(DbTool.gateway_id == gateway_id)
-                tools = result.all()
+                stmt = select(DbTool).where(DbTool.gateway_id == gateway_id)
+                result = await db.execute(stmt)
+                tools = result.scalars().all()
                 for tool in tools:
                     await self.tool_service.toggle_tool_status(db, tool.id, activate)
 

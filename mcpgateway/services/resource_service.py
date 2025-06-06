@@ -196,7 +196,19 @@ class ResourceService:
             # Add to DB
             db.add(db_resource)
             await db.commit()
-            await db.refresh(db_resource)
+            stmt = (
+                select(DbResource)
+                .where(DbResource.name == resource.name)
+                .options(
+                    selectinload(DbResource.gateway),
+                    selectinload(DbResource.servers),
+                    selectinload(DbResource.metrics),
+                    selectinload(DbResource.federated_with),
+                    selectinload(DbResource.subscriptions),
+                )
+            )
+            result = await db.execute(stmt)
+            db_resource = result.scalar_one_or_none()
 
             # Notify subscribers
             await self._notify_resource_added(db_resource)
@@ -328,7 +340,19 @@ class ResourceService:
                 resource.is_active = activate
                 resource.updated_at = datetime.utcnow()
                 await db.commit()
-                await db.refresh(resource)
+                stmt = (
+                    select(DbResource)
+                    .where(DbResource.id == resource_id)
+                    .options(
+                        selectinload(DbResource.gateway),
+                        selectinload(DbResource.servers),
+                        selectinload(DbResource.metrics),
+                        selectinload(DbResource.federated_with),
+                        selectinload(DbResource.subscriptions),
+                    )
+                )
+                result = await db.execute(stmt)
+                resource = result.scalar_one_or_none()
 
                 # Notify subscribers
                 if activate:
@@ -460,7 +484,19 @@ class ResourceService:
 
             resource.updated_at = datetime.utcnow()
             await db.commit()
-            await db.refresh(resource)
+            stmt = (
+                select(DbResource)
+                .where(DbResource.uri == uri)
+                .options(
+                    selectinload(DbResource.gateway),
+                    selectinload(DbResource.servers),
+                    selectinload(DbResource.metrics),
+                    selectinload(DbResource.federated_with),
+                    selectinload(DbResource.subscriptions),
+                )
+            )
+            result = await db.execute(stmt)
+            resource = result.scalar_one_or_none()
 
             # Notify subscribers
             await self._notify_resource_updated(resource)

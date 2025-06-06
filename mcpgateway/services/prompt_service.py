@@ -206,7 +206,18 @@ class PromptService:
             # Add to DB
             db.add(db_prompt)
             await db.commit()
-            await db.refresh(db_prompt)
+            stmt = (
+                select(DbPrompt)
+                .where(DbPrompt.name == prompt.name)
+                .options(
+                    selectinload(DbPrompt.gateway),
+                    selectinload(DbPrompt.servers),
+                    selectinload(DbPrompt.metrics),
+                    selectinload(DbPrompt.federated_with),
+                )
+            )
+            result = await db.execute(stmt)
+            db_prompt = result.scalar_one_or_none()
 
             # Notify subscribers
             await self._notify_prompt_added(db_prompt)
@@ -331,7 +342,7 @@ class PromptService:
         except Exception as e:
             raise PromptError(f"Failed to process prompt: {str(e)}")
 
-    async def update_prompt(self, db: AsyncSession, name: str, prompt_update: PromptUpdate) -> PromptRead:
+    async def update_prompt(self, db: AsyncSession, prompt_id: int, prompt_update: PromptUpdate) -> PromptRead:
         """Update an existing prompt.
 
         Args:
@@ -345,28 +356,22 @@ class PromptService:
         Raises:
             PromptNotFoundError: If prompt not found
             PromptError: For other update errors
-            PromptNameConflictError: When prompt name conflict happens
         """
         try:
-            result = await db.execute(select(DbPrompt).where(DbPrompt.name == name).where(DbPrompt.is_active))
+            stmt = (
+                select(DbPrompt)
+                .where(DbPrompt.id == prompt_id)
+                .options(
+                    selectinload(DbPrompt.gateway),
+                    selectinload(DbPrompt.servers),
+                    selectinload(DbPrompt.metrics),
+                    selectinload(DbPrompt.federated_with),
+                )
+            )
+            result = await db.execute(stmt)
             prompt = result.scalar_one_or_none()
             if not prompt:
-                result = await db.execute(select(DbPrompt).where(DbPrompt.name == name).where(not_(DbPrompt.is_active)))
-                inactive_prompt = result.scalar_one_or_none()
-                if inactive_prompt:
-                    raise PromptNotFoundError(f"Prompt '{name}' exists but is inactive")
-
-                raise PromptNotFoundError(f"Prompt not found: {name}")
-
-            if prompt_update.name is not None and prompt_update.name != prompt.name:
-                result = await db.execute(select(DbPrompt).where(DbPrompt.name == prompt_update.name).where(DbPrompt.id != prompt.id))
-                existing_prompt = result.scalar_one_or_none()
-                if existing_prompt:
-                    raise PromptNameConflictError(
-                        prompt_update.name,
-                        is_active=existing_prompt.is_active,
-                        prompt_id=existing_prompt.id,
-                    )
+                raise PromptNotFoundError(f"Prompt not found: {prompt_id}")
 
             if prompt_update.name is not None:
                 prompt.name = prompt_update.name
@@ -391,10 +396,23 @@ class PromptService:
 
             prompt.updated_at = datetime.utcnow()
             await db.commit()
-            await db.refresh(prompt)
+            stmt = (
+                select(DbPrompt)
+                .where(DbPrompt.id == prompt_id)
+                .options(
+                    selectinload(DbPrompt.gateway),
+                    selectinload(DbPrompt.servers),
+                    selectinload(DbPrompt.metrics),
+                    selectinload(DbPrompt.federated_with),
+                )
+            )
+            result = await db.execute(stmt)
+            prompt = result.scalar_one_or_none()
+
+            logger.info(f'{prompt.__dict__=}')
 
             await self._notify_prompt_updated(prompt)
-            return PromptRead.model_validate(self._convert_db_prompt(prompt))
+            # return PromptRead.model_validate(self._convert_db_prompt(prompt))
 
         except Exception as e:
             await db.rollback()
@@ -423,7 +441,19 @@ class PromptService:
                 prompt.is_active = activate
                 prompt.updated_at = datetime.utcnow()
                 await db.commit()
-                await db.refresh(prompt)
+                stmt = (
+                    select(DbPrompt)
+                    .where(DbPrompt.id == prompt_id)
+                    .options(
+                        selectinload(DbPrompt.gateway),
+                        selectinload(DbPrompt.servers),
+                        selectinload(DbPrompt.metrics),
+                        selectinload(DbPrompt.federated_with),
+                    )
+                )
+                result = await db.execute(stmt)
+                prompt = result.scalar_one_or_none()
+
                 if activate:
                     await self._notify_prompt_activated(prompt)
                 else:
@@ -482,7 +512,7 @@ class PromptService:
             if not prompt:
                 raise PromptNotFoundError(f"Prompt not found: {name}")
             prompt_info = {"id": prompt.id, "name": prompt.name}
-            db.delete(prompt)
+            await db.delete(prompt)
             await db.commit()
             await self._notify_prompt_deleted(prompt_info)
             logger.info(f"Permanently deleted prompt: {name}")

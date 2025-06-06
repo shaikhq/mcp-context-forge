@@ -164,7 +164,6 @@ class SSETransport(Transport):
 
                         data = json.dumps(message, default=lambda obj: (obj.strftime("%Y-%m-%d %H:%M:%S") if isinstance(obj, datetime) else TypeError("Type not serializable")))
 
-                        # logger.info(f"Sending SSE message: {data[:100]}...")
                         logger.debug(f"Sending SSE message: {data}")
 
                         yield {

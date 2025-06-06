@@ -1599,7 +1599,7 @@ async function runToolTest() {
   };
 
   // Send the request to your /rpc endpoint
-  fetch("/rpc", {
+  fetch(`${window.ROOT_PATH}/rpc`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json", // ← make sure we include this
