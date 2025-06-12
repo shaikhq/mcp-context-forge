@@ -37,6 +37,7 @@ from mcpgateway.utils.services_auth import decode_auth
 
 try:
     import redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -97,7 +98,7 @@ class GatewayService:
         """Initialize the gateway service."""
         self._event_subscribers: List[asyncio.Queue] = []
         self._http_client = httpx.AsyncClient(timeout=settings.federation_timeout, verify=not settings.skip_ssl_verify)
-        self._health_check_interval = GW_HEALTH_CHECK_INTERVAL 
+        self._health_check_interval = GW_HEALTH_CHECK_INTERVAL
         self._health_check_task: Optional[asyncio.Task] = None
         self._active_gateways: Set[str] = set()  # Track active gateway URLs
         self._stream_response = None
@@ -110,9 +111,9 @@ class GatewayService:
 
         if self.redis_url and REDIS_AVAILABLE:
             self._redis_client = redis.from_url(self.redis_url)
-            self._instance_id = str(uuid.uuid4())             # Unique ID for this process
+            self._instance_id = str(uuid.uuid4())  # Unique ID for this process
             self._leader_key = "gateway_service_leader"
-            self._leader_ttl = 40                             # seconds
+            self._leader_ttl = 40  # seconds
         elif settings.cache_type != "none":
             # Fallback: File-based lock
             self._redis_client = None
@@ -122,7 +123,11 @@ class GatewayService:
             self._redis_client = None
 
     async def initialize(self) -> None:
-        """Initialize the service and start health check if this instance is the leader."""
+        """Initialize the service and start health check if this instance is the leader.
+
+        Raises:
+            ConnectionError: When redis is not reachable
+        """
         logger.info("Initializing gateway service")
 
         if self._redis_client:
@@ -575,7 +580,7 @@ class GatewayService:
 
                 except Exception:
                     await self._handle_gateway_failure(gateway)
-                    
+
         # All gateways passed
         return True
 
@@ -718,7 +723,7 @@ class GatewayService:
                         logger.error(f"Health check run failed: {str(e)}")
 
                     await asyncio.sleep(self._health_check_interval)
-                
+
                 else:
                     # FileLock-based leader fallback
                     try:

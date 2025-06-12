@@ -19,6 +19,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/javascript/javascript.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{{ root_path }}/static/admin.js"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css"
       rel="stylesheet"
@@ -54,6 +55,8 @@
           class="text-indigo-600 hover:underline"
           >⭐ Star mcp-context-forge on GitHub</a
         >
+        <span class="mx-2 text-gray-400">|</span>
+        <span x-data="{ darkMode: false }"><button x-on:click="darkMode = !darkMode" x-text="darkMode ? '☀️' : '🌙'"></button></span>
       </p>
     </header>
 
