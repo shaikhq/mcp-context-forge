@@ -1,5 +1,16 @@
 <!doctype html>
-<html lang="en">
+<html 
+  lang="en"
+  x-data="{
+    darkMode: JSON.parse(localStorage.getItem('darkMode') || 'false'),
+    toggleDark() {
+      this.darkMode = !this.darkMode;
+      localStorage.setItem('darkMode', this.darkMode);
+    }
+  }"
+  x-init="$watch('darkMode', val => document.documentElement.classList.toggle('dark', val))"
+  :class="{ 'dark': darkMode }"
+>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -20,6 +31,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{{ root_path }}/static/admin.js"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css"
       rel="stylesheet"
@@ -56,7 +68,8 @@
           >⭐ Star mcp-context-forge on GitHub</a
         >
         <span class="mx-2 text-gray-400">|</span>
-        <span x-data="{ darkMode: false }"><button x-on:click="darkMode = !darkMode" x-text="darkMode ? '☀️' : '🌙'"></button></span>
+        <button x-on:click="darkMode = !darkMode" x-text="darkMode ? '🌙' : '☀️'"></button>
+        <p class="mt-4">This text should change color when you toggle the button.</p>
       </p>
     </header>
 
