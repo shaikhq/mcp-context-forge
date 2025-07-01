@@ -20,12 +20,15 @@ from mcpgateway.services.tool_service import (
     ToolInvocationError,
     ToolNotFoundError,
     ToolService,
+    ToolResult,
+    TextContent,
 )
 import logging
 
 # Third-Party
 import pytest
 from sqlalchemy.exc import IntegrityError
+from contextlib import asynccontextmanager
 
 
 @pytest.fixture
@@ -50,6 +53,14 @@ def mock_gateway():
     gw.created_at = gw.updated_at = gw.last_seen = "2025-01-01T00:00:00Z"
     gw.is_active = True
 
+    # one dummy tool hanging off the gateway
+    tool = MagicMock(spec=DbTool, id=101, name="dummy_tool")
+    gw.tools = [tool]
+    gw.federated_tools = []
+    gw.transport = "sse"
+    gw.auth_type = None
+    gw.auth_value = {}
+
     return gw
 
 
@@ -63,7 +74,7 @@ def mock_tool():
     tool.url = "http://example.com/tools/test"
     tool.description = "A test tool"
     tool.integration_type = "MCP"
-    tool.request_type = "POST"
+    tool.request_type = "SSE"
     tool.headers = {"Content-Type": "application/json"}
     tool.input_schema = {"type": "object", "properties": {"param": {"type": "string"}}}
     tool.jsonpath_filter = ""
@@ -745,6 +756,92 @@ class TestToolService:
             True,  # Success
             None,  # No error
         )
+
+    @pytest.mark.asyncio
+    async def test_invoke_tool_mcp(self, tool_service, mock_tool, test_db):
+        """Test invoking a REST tool."""
+        from types import SimpleNamespace
+
+        mock_gateway = SimpleNamespace(
+            id=42,
+            name="test_gateway",
+            slug="test-gateway",
+            url="http://fake-mcp:8080/sse",
+            is_active=True,
+            auth_type="bearer",         #  ←← attribute your error complained about
+            auth_value="Bearer abc123",
+        )
+        # Configure tool as REST
+        mock_tool.integration_type = "MCP"
+        mock_tool.request_type = "SSE"
+        mock_tool.jsonpath_filter = ""
+        mock_tool.auth_type = None
+        mock_tool.auth_value = None  # No auth
+        mock_tool.original_name = "dummy_tool"
+        mock_tool.headers = {}
+        mock_tool.name='test-gateway-dummy-tool'
+        mock_tool.gateway_slug='test-gateway'
+        mock_tool.gateway_id=mock_gateway.id
+
+        returns = [mock_tool, mock_gateway, mock_gateway]
+
+        def execute_side_effect(*_args, **_kwargs):
+            value = returns.pop(0)
+            m = Mock()
+            m.scalar_one_or_none.return_value = value
+            return m
+
+        test_db.execute = Mock(side_effect=execute_side_effect)
+
+        expected_result = ToolResult(
+            content=[TextContent(type="text", text="MCP response")]
+        )
+
+        session_mock = AsyncMock()
+        session_mock.initialize = AsyncMock()
+        session_mock.call_tool = AsyncMock(return_value=expected_result)
+
+        client_session_cm = AsyncMock()
+        client_session_cm.__aenter__.return_value = session_mock
+        client_session_cm.__aexit__.return_value = AsyncMock()
+
+
+        @asynccontextmanager
+        async def mock_sse_client(*_args, **_kwargs):
+            yield ("read", "write")
+
+        with patch(
+            "mcpgateway.services.tool_service.sse_client", mock_sse_client
+        ), patch(
+            "mcpgateway.services.tool_service.ClientSession", return_value=client_session_cm
+        ), patch(
+            "mcpgateway.services.tool_service.decode_auth", return_value={"Authorization": "Bearer xyz"}
+        ), patch(
+            "mcpgateway.services.tool_service.extract_using_jq", side_effect=lambda data, _filt: data
+        ):
+            # stub metrics
+            tool_service._record_tool_metric = AsyncMock()
+
+            # ------------------------------------------------------------------
+            # 4.  Act
+            # ------------------------------------------------------------------
+            result = await tool_service.invoke_tool(test_db, "dummy_tool", {"param": "value"})
+
+
+        session_mock.initialize.assert_awaited_once()
+        session_mock.call_tool.assert_awaited_once_with("dummy_tool", {"param": "value"})
+
+        # Our ToolResult bubbled back out
+        assert result.content[0].text == "MCP response"
+
+        # Metrics were recorded
+        tool_service._record_tool_metric.assert_called_once_with(
+            test_db, mock_tool, ANY, True, None
+        )
+
+        # mock_tool.request_type = "StreamableHTTP"
+        # with patch("mcpgateway.services.tool_service.streamablehttp_client", mock_streamable_client):
+        #     ...
 
     @pytest.mark.asyncio
     async def test_invoke_tool_error(self, tool_service, mock_tool, test_db):
