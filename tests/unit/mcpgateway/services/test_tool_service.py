@@ -21,6 +21,7 @@ from mcpgateway.services.tool_service import (
     ToolNotFoundError,
     ToolService,
 )
+import logging
 
 # Third-Party
 import pytest
@@ -56,7 +57,7 @@ def mock_gateway():
 def mock_tool():
     """Create a mock tool model."""
     tool = MagicMock(spec=DbTool)
-    tool.id = 1
+    tool.id = "1"
     tool.original_name = "test_tool"
     tool.original_name_slug = "test-tool"
     tool.url = "http://example.com/tools/test"
@@ -76,6 +77,9 @@ def mock_tool():
     tool.auth_value = None  # Add this field
     tool.gateway_id = "1"
     tool.gateway = mock_gateway
+    tool.annotations = {}
+    tool.gateway_slug = "test-gateway"
+    tool.name = "test-gateway-test-tool"
 
     # Set up metrics
     tool.metrics = []
@@ -103,6 +107,68 @@ def mock_tool():
 
 class TestToolService:
     """Tests for the ToolService class."""
+
+    @pytest.mark.asyncio
+    async def test_initialize_service(self, caplog):
+        """Initialize service and check logs"""
+        caplog.set_level(logging.INFO, logger="mcpgateway.services.tool_service")
+        service = ToolService()
+        await service.initialize()
+
+        assert "Initializing tool service" in caplog.text
+
+
+    @pytest.mark.asyncio
+    async def test_shutdown_service(self, caplog):
+        """Shutdown service and check logs"""
+        caplog.set_level(logging.INFO, logger="mcpgateway.services.tool_service")
+        service = ToolService()
+        await service.shutdown()
+
+        assert "Tool service shutdown complete" in caplog.text
+
+    
+    @pytest.mark.asyncio
+    async def test_convert_tool_to_read_basic_auth(self, tool_service, mock_tool):
+        """Check auth for basic auth"""
+
+        mock_tool.auth_type = "basic"
+        # Create auth_value with the following values
+        # user = "test_user"
+        # password = "test_password"
+        mock_tool.auth_value = "FpZyxAu5PVpT0FN-gJ0JUmdovCMS0emkwW1Vb8HvkhjiBZhj1gDgDRF1wcWNrjTJSLtkz1rLzKibXrhk4GbxXnV6LV4lSw_JDYZ2sPNRy68j_UKOJnf_"
+        tool_read = tool_service._convert_tool_to_read(mock_tool)
+        
+        assert tool_read.auth.auth_type=="basic"
+        assert tool_read.auth.username=="test_user"
+        assert tool_read.auth.password=="********"
+
+    @pytest.mark.asyncio
+    async def test_convert_tool_to_read_bearer_auth(self, tool_service, mock_tool):
+        """Check auth for bearer auth"""
+
+        mock_tool.auth_type = "bearer"
+        # Create auth_value with the following values
+        # bearer token ABC123
+        mock_tool.auth_value = "--vbQRQCYlgdUh5FYvtRUH874sc949BP5rRVRRyh3KzahgBIQpjJOKz0BJ2xATUAhyxHUwkMG6ZM2OPLHc4"
+        tool_read = tool_service._convert_tool_to_read(mock_tool)
+        
+        assert tool_read.auth.auth_type=="bearer"
+        assert tool_read.auth.token=="********"
+
+    @pytest.mark.asyncio
+    async def test_convert_tool_to_read_authheaders_auth(self, tool_service, mock_tool):
+        """Check auth for authheaders auth"""
+
+        mock_tool.auth_type = "authheaders"
+        # Create auth_value with the following values
+        # {"test-api-key": "test-api-value"}
+        mock_tool.auth_value = "8pvPTCegaDhrx0bmBf488YvGg9oSo4cJJX68WCTvxjMY-C2yko_QSPGVggjjNt59TPvlGLsotTZvAiewPRQ"
+        tool_read = tool_service._convert_tool_to_read(mock_tool)
+        
+        assert tool_read.auth.auth_type=="authheaders"
+        assert tool_read.auth.auth_header_key=="test-api-key"
+        assert tool_read.auth.auth_header_value=="********"
 
     @pytest.mark.asyncio
     async def test_register_tool(self, tool_service, mock_tool, test_db):
@@ -202,6 +268,31 @@ class TestToolService:
 
         # The service wraps exceptions, so check the message
         assert "Tool already exists with name" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_register_inactive_tool_name_conflict(self, tool_service, mock_tool, test_db):
+        """Test tool registration with name conflict."""
+        # Mock DB to return existing tool
+        mock_scalar = Mock()
+        mock_tool.is_active = False
+        mock_scalar.scalar_one_or_none.return_value = mock_tool
+        test_db.execute = Mock(return_value=mock_scalar)
+
+        # Create tool request with conflicting name
+        tool_create = ToolCreate(
+            name="test_tool",  # Same name as mock_tool
+            url="http://example.com/tools/new",
+            description="A new tool",
+            integration_type="MCP",
+            request_type="POST",
+        )
+
+        # Should raise ToolError wrapping ToolNameConflictError
+        with pytest.raises(ToolError) as exc_info:
+            await tool_service.register_tool(test_db, tool_create)
+
+        # The service wraps exceptions, so check the message
+        assert "(currently inactive, ID:" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_register_tool_db_integrity_error(self, tool_service, test_db):
