@@ -403,7 +403,7 @@ class GatewayService:
             gateway_id: Gateway ID to toggle
             activate: True to activate, False to deactivate
             reachable: True if the gateway is reachable, False otherwise
-            update_only_reachable: If True, only updates reachable status without changing enabled status. Applicable for changing tool status. If the tool is manually deactivated, it will not be reactivated if reachabale.
+            only_update_reachable: If True, only updates reachable status without changing enabled status. Applicable for changing tool status. If the tool is manually deactivated, it will not be reactivated if reachabale.
 
         Returns:
             Updated gateway information
@@ -797,6 +797,9 @@ class GatewayService:
 
     def _get_gateways(self, include_inactive: bool = True) -> list[DbGateway]:
         """Sync function for database operations (runs in thread).
+
+        Args:
+            include_inactive: Whether to include inactive gateways
 
         Returns:
             List[DbGateway]: List of active gateways
