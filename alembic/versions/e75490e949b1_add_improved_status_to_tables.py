@@ -5,8 +5,13 @@ Revises: e4fc04d1a442
 Create Date: 2025-07-02 17:12:40.678256
 """
 
+# Standard
 from typing import Sequence, Union
+
+# First-Party
 from alembic import op
+
+# Third-Party
 import sqlalchemy as sa
 from sqlalchemy.engine import Connection
 
@@ -28,7 +33,7 @@ def upgrade():
     with op.batch_alter_table('gateways') as batch_op:
         batch_op.add_column(sa.Column('status', sa.JSON(), nullable=True))
 
-    # Populate status from is_active
+    # Populate status from is_active with proper true/false booleans
     if dialect == 'postgresql':
         op.execute("""
             UPDATE tools
@@ -39,16 +44,17 @@ def upgrade():
             SET status = jsonb_build_object('enabled', is_active, 'reachable', true)
         """)
     else:
+        # For MySQL/SQLite: ensure is_active is compared to 1 for boolean JSON
         op.execute("""
             UPDATE tools
-            SET status = json_object('enabled', is_active, 'reachable', true)
+            SET status = json_object('enabled', is_active = 1, 'reachable', true)
         """)
         op.execute("""
             UPDATE gateways
-            SET status = json_object('enabled', is_active, 'reachable', true)
+            SET status = json_object('enabled', is_active = 1, 'reachable', true)
         """)
 
-    # Use batch_alter_table to make status column non-nullable and drop is_active
+    # Make status non-nullable and drop is_active
     with op.batch_alter_table('tools') as batch_op:
         batch_op.alter_column('status', nullable=False)
         batch_op.drop_column('is_active')
@@ -69,7 +75,7 @@ def downgrade():
     with op.batch_alter_table('gateways') as batch_op:
         batch_op.add_column(sa.Column('is_active', sa.Boolean(), nullable=True))
 
-    # Restore is_active from status
+    # Restore is_active from status JSON
     if dialect == 'postgresql':
         op.execute("""
             UPDATE tools
@@ -80,6 +86,7 @@ def downgrade():
             SET is_active = (status ->> 'enabled')::boolean
         """)
     else:
+        # For MySQL/SQLite, extract JSON value and cast to boolean
         op.execute("""
             UPDATE tools
             SET is_active = CAST(json_extract(status, '$.enabled') AS BOOLEAN)
@@ -89,7 +96,7 @@ def downgrade():
             SET is_active = CAST(json_extract(status, '$.enabled') AS BOOLEAN)
         """)
 
-    # Use batch_alter_table to set is_active non-nullable and drop status
+    # Make is_active non-nullable and drop status column
     with op.batch_alter_table('tools') as batch_op:
         batch_op.alter_column('is_active', nullable=False)
         batch_op.drop_column('status')
