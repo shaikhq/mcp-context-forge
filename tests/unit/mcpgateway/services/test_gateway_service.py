@@ -121,7 +121,7 @@ def mock_gateway():
     gw.description = "A test gateway"
     gw.capabilities = {"prompts": {"listChanged": True}, "resources": {"listChanged": True}, "tools": {"listChanged": True}}
     gw.created_at = gw.updated_at = gw.last_seen = "2025-01-01T00:00:00Z"
-    gw.status = { "enabled": True, "reachable": True }
+    gw.status = {"enabled": True, "reachable": True}
 
     # one dummy tool hanging off the gateway
     tool = MagicMock(spec=DbTool, id=101, name="dummy_tool")

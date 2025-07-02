@@ -132,7 +132,7 @@ class TestToolService:
                 jsonpath_filter="",
                 created_at="2023-01-01T00:00:00",
                 updated_at="2023-01-01T00:00:00",
-                status={"enabled": True, "reachable": True}, 
+                status={"enabled": True, "reachable": True},
                 gateway_id=None,
                 execution_count=0,
                 auth=None,  # Add auth field
@@ -256,7 +256,7 @@ class TestToolService:
             jsonpath_filter="",
             created_at="2023-01-01T00:00:00",
             updated_at="2023-01-01T00:00:00",
-            status={"enabled": True, "reachable": True},  
+            status={"enabled": True, "reachable": True},
             gateway_id=None,
             execution_count=0,
             auth=None,  # Add auth field
@@ -307,7 +307,7 @@ class TestToolService:
             jsonpath_filter="",
             created_at="2023-01-01T00:00:00",
             updated_at="2023-01-01T00:00:00",
-            status={"enabled": True, "reachable": True},  
+            status={"enabled": True, "reachable": True},
             gateway_id=None,
             execution_count=0,
             auth=None,  # Add auth field
@@ -409,7 +409,7 @@ class TestToolService:
             jsonpath_filter="",
             created_at="2023-01-01T00:00:00",
             updated_at="2023-01-01T00:00:00",
-            status={"enabled": False, "reachable": True},  
+            status={"enabled": False, "reachable": True},
             gateway_id=None,
             execution_count=0,
             auth=None,  # Add auth field
@@ -478,7 +478,7 @@ class TestToolService:
             jsonpath_filter="",
             created_at="2023-01-01T00:00:00",
             updated_at="2023-01-01T00:00:00",
-            status={"enabled": True, "reachable": True},  
+            status={"enabled": True, "reachable": True},
             gateway_id=None,
             execution_count=0,
             auth=None,  # Add auth field

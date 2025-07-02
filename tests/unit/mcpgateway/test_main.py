@@ -141,7 +141,7 @@ MOCK_GATEWAY_READ = {
     "auth_type": "none",
     "created_at": "2023-01-01T00:00:00",
     "updated_at": "2023-01-01T00:00:00",
-    "status": {"enabled": True, "reachable": True}
+    "status": {"enabled": True, "reachable": True},
 }
 
 MOCK_ROOT = {
