@@ -17,7 +17,7 @@ It handles:
 # Standard
 import asyncio
 import base64
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 import re
@@ -356,9 +356,11 @@ class ToolService:
             tool = db.get(DbTool, tool_id)
             if not tool:
                 raise ToolNotFoundError(f"Tool not found: {tool_id}")
+
             if tool.status.get("enabled") != activate:
                 tool.status = {"enabled": activate, "reachable": reachable}
-                tool.updated_at = datetime.utcnow()
+                tool.updated_at = datetime.now(timezone.utc)
+
                 db.commit()
                 db.refresh(tool)
                 if activate:
@@ -474,7 +476,7 @@ class ToolService:
                     response = await self._http_client.get(final_url, params=payload, headers=headers)
                 else:
                     response = await self._http_client.request(method, final_url, json=payload, headers=headers)
-                response.raise_for_status()
+                await response.raise_for_status()
 
                 # Handle 204 No Content responses that have no body
                 if response.status_code == 204:
@@ -614,7 +616,7 @@ class ToolService:
             else:
                 tool.auth_type = None
 
-            tool.updated_at = datetime.utcnow()
+            tool.updated_at = datetime.now(timezone.utc)
             db.commit()
             db.refresh(tool)
             await self._notify_tool_updated(tool)
@@ -634,7 +636,7 @@ class ToolService:
         event = {
             "type": "tool_updated",
             "data": {"id": tool.id, "name": tool.name, "url": tool.url, "description": tool.description, "status": tool.status},
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         await self._publish_event(event)
 
@@ -648,7 +650,7 @@ class ToolService:
         event = {
             "type": "tool_activated",
             "data": {"id": tool.id, "name": tool.name, "status": tool.status},
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         await self._publish_event(event)
 
@@ -662,7 +664,7 @@ class ToolService:
         event = {
             "type": "tool_deactivated",
             "data": {"id": tool.id, "name": tool.name, "status": tool.status},
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         await self._publish_event(event)
 
@@ -676,7 +678,7 @@ class ToolService:
         event = {
             "type": "tool_deleted",
             "data": tool_info,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         await self._publish_event(event)
 
@@ -711,7 +713,7 @@ class ToolService:
                 "description": tool.description,
                 "status": tool.status,
             },
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         await self._publish_event(event)
 
@@ -725,7 +727,7 @@ class ToolService:
         event = {
             "type": "tool_removed",
             "data": {"id": tool.id, "name": tool.name, "status": tool.status},
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         await self._publish_event(event)
 
