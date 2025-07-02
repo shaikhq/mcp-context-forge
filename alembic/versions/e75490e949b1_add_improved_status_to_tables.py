@@ -41,11 +41,11 @@ def upgrade():
     else:
         op.execute("""
             UPDATE tools
-            SET status = json_object('enabled', is_active, 'reachable', 1)
+            SET status = json_object('enabled', is_active, 'reachable', true)
         """)
         op.execute("""
             UPDATE gateways
-            SET status = json_object('enabled', is_active, 'reachable', 1)
+            SET status = json_object('enabled', is_active, 'reachable', true)
         """)
 
     # Use batch_alter_table to make status column non-nullable and drop is_active
