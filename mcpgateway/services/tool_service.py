@@ -429,13 +429,13 @@ class ToolService:
             else_=DbTool.gateway_slug + separator + DbTool.original_name_slug,  # ELSE gateway_slug||sep||original
         )
         tool = db.execute(select(DbTool).where(slug_expr == name).where(DbTool.status["enabled"])).scalar_one_or_none()
+        offline_tool = db.execute(select(DbTool).where(slug_expr == name).where(not_(DbTool.status["reachable"]))).scalar_one_or_none()
+        if offline_tool:
+            raise ToolNotFoundError(f"Tool '{name}' exists but is currently offline. Please verify if it is running.")
         if not tool:
             inactive_tool = db.execute(select(DbTool).where(slug_expr == name).where(not_(DbTool.status["enabled"]))).scalar_one_or_none()
             if inactive_tool:
                 raise ToolNotFoundError(f"Tool '{name}' exists but is inactive")
-            offline_tool = db.execute(select(DbTool).where(slug_expr == name).where(not_(DbTool.status["reachable"]))).scalar_one_or_none()
-            if offline_tool:
-                raise ToolNotFoundError(f"Tool '{name}' exists but is currently offline. Please verify if it is running.")
             raise ToolNotFoundError(f"Tool not found: {name}")
         start_time = time.monotonic()
         success = False
