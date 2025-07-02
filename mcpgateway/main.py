@@ -928,7 +928,7 @@ async def create_tool(tool: ToolCreate, db: Session = Depends(get_db), user: str
         logger.debug(f"User {user} is creating a new tool")
         return await tool_service.register_tool(db, tool)
     except ToolNameConflictError as e:
-        if not e.is_active and e.tool_id:
+        if not e.status["enabled"] and e.tool_id:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Tool name already exists but is inactive. Consider activating it with ID: {e.tool_id}",

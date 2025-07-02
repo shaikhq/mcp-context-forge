@@ -399,7 +399,7 @@ async def admin_toggle_gateway(
     form = await request.form()
     activate = form.get("activate", "true").lower() == "true"
     try:
-        await gateway_service.toggle_gateway_status(db, gateway_id, activate)
+        await gateway_service.toggle_gateway_status(db, gateway_id, activate, reachable=activate)
     except Exception as e:
         logger.error(f"Error toggling gateway status: {e}")
 

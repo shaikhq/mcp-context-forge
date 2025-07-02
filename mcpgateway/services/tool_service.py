@@ -65,19 +65,19 @@ class ToolNotFoundError(ToolError):
 class ToolNameConflictError(ToolError):
     """Raised when a tool name conflicts with existing (active or inactive) tool."""
 
-    def __init__(self, name: str, is_active: bool = True, tool_id: Optional[int] = None):
+    def __init__(self, name: str, status: Dict[str, bool] = {"enabled": True, "reachable": True}, tool_id: Optional[int] = None):
         """Initialize the error with tool information.
 
         Args:
             name: The conflicting tool name.
-            is_active: Whether the existing tool is active.
+            status: Whether the existing tool is enabled or not.
             tool_id: ID of the existing tool if available.
         """
         self.name = name
-        self.is_active = is_active
+        self.status = status
         self.tool_id = tool_id
         message = f"Tool already exists with name: {name}"
-        if not is_active:
+        if not status.get("enabled"):
             message += f" (currently inactive, ID: {tool_id})"
         super().__init__(message)
 
@@ -210,7 +210,7 @@ class ToolService:
             if existing_tool:
                 raise ToolNameConflictError(
                     existing_tool.name,
-                    is_active=existing_tool.is_active,
+                    status=existing_tool.status,
                     tool_id=existing_tool.id,
                 )
 
@@ -267,7 +267,7 @@ class ToolService:
         cursor = None  # Placeholder for pagination; ignore for now
         logger.debug(f"Listing tools with include_inactive={include_inactive}, cursor={cursor}")
         if not include_inactive:
-            query = query.where(DbTool.is_active)
+            query = query.where(DbTool.status["enabled"])
         tools = db.execute(query).scalars().all()
         return [self._convert_tool_to_read(t) for t in tools]
 
@@ -290,7 +290,7 @@ class ToolService:
         cursor = None  # Placeholder for pagination; ignore for now
         logger.debug(f"Listing server tools for server_id={server_id} with include_inactive={include_inactive}, cursor={cursor}")
         if not include_inactive:
-            query = query.where(DbTool.is_active)
+            query = query.where(DbTool.status["enabled"])
         tools = db.execute(query).scalars().all()
         return [self._convert_tool_to_read(t) for t in tools]
 
@@ -336,13 +336,14 @@ class ToolService:
             db.rollback()
             raise ToolError(f"Failed to delete tool: {str(e)}")
 
-    async def toggle_tool_status(self, db: Session, tool_id: str, activate: bool) -> ToolRead:
+    async def toggle_tool_status(self, db: Session, tool_id: str, activate: bool, reachable: bool = True) -> ToolRead:
         """Toggle tool active status.
 
         Args:
             db: Database session.
             tool_id: Tool ID to toggle.
             activate: True to activate, False to deactivate.
+            reachable: True if the corresponding gateway for the tool is reachable, False otherwise.
 
         Returns:
             Updated tool information.
@@ -355,8 +356,8 @@ class ToolService:
             tool = db.get(DbTool, tool_id)
             if not tool:
                 raise ToolNotFoundError(f"Tool not found: {tool_id}")
-            if tool.is_active != activate:
-                tool.is_active = activate
+            if tool.status.get("enabled") != activate:
+                tool.status = {"enabled": activate, "reachable": reachable}
                 tool.updated_at = datetime.utcnow()
                 db.commit()
                 db.refresh(tool)
@@ -364,7 +365,40 @@ class ToolService:
                     await self._notify_tool_activated(tool)
                 else:
                     await self._notify_tool_deactivated(tool)
-                logger.info(f"Tool {tool.name} {'activated' if activate else 'deactivated'}")
+                logger.info(f"Tool status: {tool.name} - {'enabled' if activate else 'disabled'} and {'accessible' if reachable else 'inaccessible'}")
+
+            return self._convert_tool_to_read(tool)
+        except Exception as e:
+            db.rollback()
+            raise ToolError(f"Failed to toggle tool status: {str(e)}")
+
+    async def toggle_tool_reachable_status(self, db: Session, tool_id: str, reachable: bool = True) -> ToolRead:
+        """Toggle tool reachable status without changing the enabled status.
+
+        Args:
+            db: Database session.
+            tool_id: Tool ID to toggle.
+            reachable: True if the corresponding gateway for the tool is reachable, False otherwise.
+
+        Returns:
+            Updated tool information.
+
+        Raises:
+            ToolNotFoundError: If tool not found.
+            ToolError: For other errors.
+        """
+        try:
+            tool = db.get(DbTool, tool_id)
+            if not tool:
+                raise ToolNotFoundError(f"Tool not found: {tool_id}")
+
+            if tool.status.get("reachable") != reachable:
+                tool.status = {"enabled": tool.status.get("enabled"), "reachable": reachable}
+                tool.updated_at = datetime.utcnow()
+                db.commit()
+                db.refresh(tool)
+                logger.info(f"Tool status: {tool.name} - {'accessible' if reachable else 'inaccessible'}")
+
             return self._convert_tool_to_read(tool)
         except Exception as e:
             db.rollback()
@@ -394,9 +428,9 @@ class ToolService:
             ),  # WHEN gateway_slug IS NULL
             else_=DbTool.gateway_slug + separator + DbTool.original_name_slug,  # ELSE gateway_slug||sep||original
         )
-        tool = db.execute(select(DbTool).where(slug_expr == name).where(DbTool.is_active)).scalar_one_or_none()
+        tool = db.execute(select(DbTool).where(slug_expr == name).where(DbTool.status["enabled"])).scalar_one_or_none()
         if not tool:
-            inactive_tool = db.execute(select(DbTool).where(slug_expr == name).where(not_(DbTool.is_active))).scalar_one_or_none()
+            inactive_tool = db.execute(select(DbTool).where(slug_expr == name).where(not_(DbTool.status["enabled"]))).scalar_one_or_none()
             if inactive_tool:
                 raise ToolNotFoundError(f"Tool '{name}' exists but is inactive")
             raise ToolNotFoundError(f"Tool not found: {name}")
@@ -453,7 +487,7 @@ class ToolService:
                 success = True
             elif tool.integration_type == "MCP":
                 transport = tool.request_type.lower()
-                gateway = db.execute(select(DbGateway).where(DbGateway.id == tool.gateway_id).where(DbGateway.is_active)).scalar_one_or_none()
+                gateway = db.execute(select(DbGateway).where(DbGateway.id == tool.gateway_id).where(DbGateway.status["enabled"])).scalar_one_or_none()
                 if gateway.auth_type == "bearer":
                     headers = decode_auth(gateway.auth_value)
                 else:
@@ -496,7 +530,7 @@ class ToolService:
                     return tool_call_result
 
                 tool_gateway_id = tool.gateway_id
-                tool_gateway = db.execute(select(DbGateway).where(DbGateway.id == tool_gateway_id).where(DbGateway.is_active)).scalar_one_or_none()
+                tool_gateway = db.execute(select(DbGateway).where(DbGateway.id == tool_gateway_id).where(DbGateway.status["enabled"])).scalar_one_or_none()
 
                 tool_call_result = ToolResult(content=[TextContent(text="", type="text")])
                 if transport == "sse":
@@ -543,7 +577,7 @@ class ToolService:
                 if existing_tool:
                     raise ToolNameConflictError(
                         tool_update.name,
-                        is_active=existing_tool.is_active,
+                        status=existing_tool.status,
                         tool_id=existing_tool.id,
                     )
 
@@ -593,13 +627,7 @@ class ToolService:
         """
         event = {
             "type": "tool_updated",
-            "data": {
-                "id": tool.id,
-                "name": tool.name,
-                "url": tool.url,
-                "description": tool.description,
-                "is_active": tool.is_active,
-            },
+            "data": {"id": tool.id, "name": tool.name, "url": tool.url, "description": tool.description, "status": tool.status},
             "timestamp": datetime.utcnow().isoformat(),
         }
         await self._publish_event(event)
@@ -613,7 +641,7 @@ class ToolService:
         """
         event = {
             "type": "tool_activated",
-            "data": {"id": tool.id, "name": tool.name, "is_active": True},
+            "data": {"id": tool.id, "name": tool.name, "status": tool.status},
             "timestamp": datetime.utcnow().isoformat(),
         }
         await self._publish_event(event)
@@ -627,7 +655,7 @@ class ToolService:
         """
         event = {
             "type": "tool_deactivated",
-            "data": {"id": tool.id, "name": tool.name, "is_active": False},
+            "data": {"id": tool.id, "name": tool.name, "status": tool.status},
             "timestamp": datetime.utcnow().isoformat(),
         }
         await self._publish_event(event)
@@ -675,7 +703,7 @@ class ToolService:
                 "name": tool.name,
                 "url": tool.url,
                 "description": tool.description,
-                "is_active": tool.is_active,
+                "status": tool.status,
             },
             "timestamp": datetime.utcnow().isoformat(),
         }
@@ -690,7 +718,7 @@ class ToolService:
         """
         event = {
             "type": "tool_removed",
-            "data": {"id": tool.id, "name": tool.name, "is_active": False},
+            "data": {"id": tool.id, "name": tool.name, "status": tool.status},
             "timestamp": datetime.utcnow().isoformat(),
         }
         await self._publish_event(event)

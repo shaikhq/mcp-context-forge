@@ -404,7 +404,7 @@ class ToolRead(BaseModelWithConfig):
     Includes all tool fields plus:
     - Database ID
     - Creation/update timestamps
-    - Active status
+    - status (enabled and reachable)
     - Gateway ID for federation
     - Execution count indicating the number of times the tool has been executed.
     - Metrics: Aggregated metrics for the tool invocations.
@@ -424,7 +424,7 @@ class ToolRead(BaseModelWithConfig):
     auth: Optional[AuthenticationValues]
     created_at: datetime
     updated_at: datetime
-    is_active: bool
+    status: Dict[str, bool]
     gateway_id: Optional[str]
     execution_count: int
     metrics: ToolMetrics
@@ -895,7 +895,7 @@ class GatewayRead(BaseModelWithConfig):
     capabilities: Dict[str, Any] = Field(default_factory=dict, description="Gateway capabilities")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
-    is_active: bool = Field(default=True, description="Is the gateway active?")
+    status: Dict[str, bool] = Field(default={"enabled": True, "reachable": True}, description="Status of the gateway {'enabled': True, 'reachable': True}")
     last_seen: Optional[datetime] = Field(default_factory=datetime.utcnow, description="Last seen timestamp")
 
     # Authorizations
