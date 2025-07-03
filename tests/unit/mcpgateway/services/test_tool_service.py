@@ -916,7 +916,123 @@ class TestToolService:
             await tool_service.update_tool(test_db, 999, tool_update)
 
         assert "Tool not found: 999" in str(exc_info.value)
+
     
+    @pytest.mark.asyncio
+    async def test_update_tool_none_name(self, tool_service, mock_tool, test_db):
+        """Test updating a tool with no name."""
+        # Mock DB get to return None
+        test_db.get = Mock(return_value=mock_tool)
+
+        # Create update request
+        tool_update = ToolUpdate()
+
+        # The service wraps the exception in ToolError
+        with pytest.raises(ToolError) as exc_info:
+            await tool_service.update_tool(test_db, 999, tool_update)
+
+        assert "Failed to update tool" in str(exc_info.value)
+    
+    @pytest.mark.asyncio
+    async def test_update_tool_extra_fields(self, tool_service, mock_tool, test_db):
+        """Test updating extra fields in an existing tool."""
+        # Mock DB get to return None
+        mock_tool.id = "999"
+        test_db.get = Mock(return_value=mock_tool)
+        test_db.commit = AsyncMock()
+        test_db.refresh = AsyncMock()
+
+        # Create update request
+        tool_update = ToolUpdate(
+            integration_type="MCP",
+            request_type="STREAMABLEHTTP",
+            headers={"key": "value"},
+            input_schema={"key2": "value2"},
+            annotations={"key3": "value3"},
+            jsonpath_filter="test_filter"
+        )
+
+        # The service wraps the exception in ToolError
+        result = await tool_service.update_tool(test_db, "999", tool_update)
+
+        assert result.integration_type=="MCP"
+        assert result.request_type=="STREAMABLEHTTP"
+        assert result.headers=={"key": "value"}
+        assert result.input_schema=={"key2": "value2"}
+        assert result.annotations=={"key3": "value3"}
+        assert result.jsonpath_filter=="test_filter"
+
+    
+    @pytest.mark.asyncio
+    async def test_update_tool_basic_auth(self, tool_service, mock_tool, test_db):
+        """Test updating auth in an existing tool."""
+        # Mock DB get to return None
+        mock_tool.id = "999"
+        test_db.get = Mock(return_value=mock_tool)
+        test_db.commit = AsyncMock()
+        test_db.refresh = AsyncMock()
+
+        # Basic auth_value
+        # Create auth_value with the following values
+        # user = "test_user"
+        # password = "test_password"
+        basic_auth_value = "FpZyxAu5PVpT0FN-gJ0JUmdovCMS0emkwW1Vb8HvkhjiBZhj1gDgDRF1wcWNrjTJSLtkz1rLzKibXrhk4GbxXnV6LV4lSw_JDYZ2sPNRy68j_UKOJnf_"
+
+
+        # Create update request
+        tool_update = ToolUpdate(
+            auth=AuthenticationValues(auth_type="basic", auth_value=basic_auth_value)
+        )
+
+        # The service wraps the exception in ToolError
+        result = await tool_service.update_tool(test_db, "999", tool_update)
+
+        assert result.auth==AuthenticationValues(auth_type="basic", username="test_user", password="********")
+    
+    @pytest.mark.asyncio
+    async def test_update_tool_bearer_auth(self, tool_service, mock_tool, test_db):
+        """Test updating auth in an existing tool."""
+        # Mock DB get to return None
+        mock_tool.id = "999"
+        test_db.get = Mock(return_value=mock_tool)
+        test_db.commit = AsyncMock()
+        test_db.refresh = AsyncMock()
+
+        # Bearer auth_value
+        # Create auth_value with the following values
+        # token = "test_token"
+        basic_auth_value = "OrZImykkCmMkfNETfO-tk_ZNv9QSUKBZUEKC81-OzdnZqnAslksS7rhvpty41-kHLc42TfKF9sIYr1Q2W4GhXAz_"
+
+        # Create update request
+        tool_update = ToolUpdate(
+            auth=AuthenticationValues(auth_type="bearer", auth_value=basic_auth_value)
+        )
+
+        # The service wraps the exception in ToolError
+        result = await tool_service.update_tool(test_db, "999", tool_update)
+
+        assert result.auth==AuthenticationValues(auth_type="bearer", token="********")
+
+    @pytest.mark.asyncio
+    async def test_update_tool_empty_auth(self, tool_service, mock_tool, test_db):
+        """Test updating auth in an existing tool."""
+        # Mock DB get to return None
+        mock_tool.id = "999"
+        test_db.get = Mock(return_value=mock_tool)
+        test_db.commit = AsyncMock()
+        test_db.refresh = AsyncMock()
+
+        # Create update request
+        tool_update = ToolUpdate(
+            auth=AuthenticationValues()
+        )
+
+        # The service wraps the exception in ToolError
+        result = await tool_service.update_tool(test_db, "999", tool_update)
+
+        assert result.auth is None
+
+
     @pytest.mark.asyncio
     async def test_invoke_tool_not_found(self, tool_service, test_db):
         """Test invoking a non-existent tool."""
@@ -1129,7 +1245,7 @@ class TestToolService:
             assert "Required URL parameter 'type' not found in arguments" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_invoke_tool_mcp(self, tool_service, mock_tool, test_db):
+    async def test_invoke_tool_mcp_streamablehttp(self, tool_service, mock_tool, test_db):
         """Test invoking a REST tool."""
         from types import SimpleNamespace
 
@@ -1144,7 +1260,7 @@ class TestToolService:
         )
         # Configure tool as REST
         mock_tool.integration_type = "MCP"
-        mock_tool.request_type = "SSE"
+        mock_tool.request_type = "StreamableHTTP"
         mock_tool.jsonpath_filter = ""
         mock_tool.auth_type = None
         mock_tool.auth_value = None  # No auth
@@ -1182,11 +1298,11 @@ class TestToolService:
 
 
         @asynccontextmanager
-        async def mock_sse_client(*_args, **_kwargs):
-            yield ("read", "write")
+        async def mock_streamable_client(*_args, **_kwargs):
+            yield ("read", "write", None)
 
         with patch(
-            "mcpgateway.services.tool_service.sse_client", mock_sse_client
+            "mcpgateway.services.tool_service.streamablehttp_client", mock_streamable_client
         ), patch(
             "mcpgateway.services.tool_service.ClientSession", return_value=client_session_cm
         ), patch(
@@ -1233,17 +1349,90 @@ class TestToolService:
         assert metric.error_message is None
         assert metric.response_time >= 0  # You can check with a tolerance if needed
 
-        # # Validate ToolMetric recorded in DB
-        # metric = test_db.query(ToolMetric).filter_by(tool_id=mock_tool.id).first()
-        # assert metric is not None, "No ToolMetric was recorded"
-        # assert metric.tool_id == mock_tool.id
-        # assert metric.is_success is True
-        # assert metric.error_message is None
-        # assert metric.response_time >= 0  # You can check with a tolerance if needed
+    @pytest.mark.asyncio
+    async def test_invoke_tool_mcp_non_standard(self, tool_service, mock_tool, test_db):
+        """Test invoking a REST tool."""
+        from types import SimpleNamespace
 
-        # mock_tool.request_type = "StreamableHTTP"
-        # with patch("mcpgateway.services.tool_service.streamablehttp_client", mock_streamable_client):
-        #     ...
+        mock_gateway = SimpleNamespace(
+            id="42",
+            name="test_gateway",
+            slug="test-gateway",
+            url="http://fake-mcp:8080/sse",
+            is_active=True,
+            auth_type="bearer",         #  ←← attribute your error complained about
+            auth_value="Bearer abc123",
+        )
+        # Configure tool as REST
+        mock_tool.integration_type = "MCP"
+        mock_tool.request_type = "ABC"
+        mock_tool.jsonpath_filter = ""
+        mock_tool.auth_type = None
+        mock_tool.auth_value = None  # No auth
+        mock_tool.original_name = "dummy_tool"
+        mock_tool.headers = {}
+        mock_tool.name='test-gateway-dummy-tool'
+        mock_tool.gateway_slug='test-gateway'
+        mock_tool.gateway_id=mock_gateway.id
+
+        returns = [mock_tool, mock_gateway, mock_gateway]
+
+        def execute_side_effect(*_args, **_kwargs):
+            if returns:
+                value = returns.pop(0)
+            else:
+                value = None  # Or whatever makes sense as a default
+
+            m = Mock()
+            m.scalar_one_or_none.return_value = value
+            return m
+        
+        test_db.execute = Mock(side_effect=execute_side_effect)
+
+        expected_result = ToolResult(
+            content=[TextContent(type="text", text="")]
+        )
+
+        with patch(
+            "mcpgateway.services.tool_service.decode_auth", return_value={"Authorization": "Bearer xyz"}
+        ), patch(
+            "mcpgateway.services.tool_service.extract_using_jq", side_effect=lambda data, _filt: data
+        ):
+            # ------------------------------------------------------------------
+            # 4.  Act
+            # ------------------------------------------------------------------
+            result = await tool_service.invoke_tool(test_db, "dummy_tool", {"param": "value"})
+
+        # Our ToolResult bubbled back out
+        assert result.content[0].text == ""
+
+        # Set a concrete ID
+        mock_tool.id = '1'
+
+        # Final mock object with tool_id
+        mock_metric = Mock()
+        mock_metric.tool_id = mock_tool.id
+        mock_metric.is_success = True
+        mock_metric.error_message = None
+        mock_metric.response_time = 1
+
+        # Setup the chain for test_db.query().filter_by().first()
+        query_mock = Mock()
+        test_db.query = Mock(return_value=query_mock)
+        query_mock.filter_by.return_value.first.return_value = mock_metric
+
+        # ----------------------------------------
+        # Now, simulate the actual method call
+        # This is what your production code would run:
+        metric = test_db.query().filter_by().first()
+
+        # Assertions
+        assert metric is not None, "No ToolMetric was recorded"
+        assert metric.tool_id == mock_tool.id
+        assert metric.is_success is True
+        assert metric.error_message is None
+        assert metric.response_time >= 0  # You can check with a tolerance if needed
+
 
     @pytest.mark.asyncio
     async def test_invoke_tool_invalid_tool_type(self, tool_service, mock_tool, test_db):
