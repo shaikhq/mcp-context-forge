@@ -434,7 +434,7 @@ class ToolService:
                     response = await self._http_client.get(final_url, params=payload, headers=headers)
                 else:
                     response = await self._http_client.request(method, final_url, json=payload, headers=headers)
-                await response.raise_for_status()
+                response.raise_for_status()
 
                 # Handle 204 No Content responses that have no body
                 if response.status_code == 204:
@@ -454,10 +454,7 @@ class ToolService:
             elif tool.integration_type == "MCP":
                 transport = tool.request_type.lower()
                 gateway = db.execute(select(DbGateway).where(DbGateway.id == tool.gateway_id).where(DbGateway.is_active)).scalar_one_or_none()
-                if gateway.auth_type == "bearer":
-                    headers = decode_auth(gateway.auth_value)
-                else:
-                    headers = {}
+                headers = decode_auth(gateway.auth_value)
 
                 async def connect_to_sse_server(server_url: str) -> str:
                     """
@@ -509,7 +506,7 @@ class ToolService:
                 filtered_response = extract_using_jq(content, tool.jsonpath_filter)
                 tool_result = ToolResult(content=filtered_response)
             else:
-                return ToolResult(content="Invalid tool type")
+                return ToolResult(content=[TextContent(type="text", text="Invalid tool type")])
 
             return tool_result
         except Exception as e:

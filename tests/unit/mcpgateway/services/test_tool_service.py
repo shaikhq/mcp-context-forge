@@ -1072,6 +1072,61 @@ class TestToolService:
             True,  # Success
             None,  # No error
         )
+        
+    @pytest.mark.asyncio
+    async def test_invoke_tool_rest_parameter_substitution(self, tool_service, mock_tool, test_db):
+        """Test invoking a REST tool."""
+        # Configure tool as REST
+        mock_tool.integration_type = "REST"
+        mock_tool.request_type = "POST"
+        mock_tool.jsonpath_filter = ""
+        mock_tool.auth_value = None  # No auth
+        mock_tool.url = "http://example.com/resource/{id}/detail/{type}"
+        
+        payload = {"id": 123, "type": "summary", "other_param": "value"}
+
+        # Mock DB to return the tool
+        mock_scalar = Mock()
+        mock_scalar.scalar_one_or_none.return_value = mock_tool
+        test_db.execute = Mock(return_value=mock_scalar)
+
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_response.status_code = 200
+        mock_response.json = Mock(return_value={"result": "REST tool response"})
+
+        tool_service._http_client.request = AsyncMock(return_value=mock_response)
+
+        await tool_service.invoke_tool(test_db, "test_tool", payload)
+
+        tool_service._http_client.request.assert_called_once_with(
+            "POST",
+            "http://example.com/resource/123/detail/summary",
+            json={"other_param": "value"},
+            headers=mock_tool.headers,
+        )
+
+    @pytest.mark.asyncio
+    async def test_invoke_tool_rest_parameter_substitution_missed_input(self, tool_service, mock_tool, test_db):
+        """Test invoking a REST tool."""
+        # Configure tool as REST
+        mock_tool.integration_type = "REST"
+        mock_tool.request_type = "POST"
+        mock_tool.jsonpath_filter = ""
+        mock_tool.auth_value = None  # No auth
+        mock_tool.url = "http://example.com/resource/{id}/detail/{type}"
+        
+        payload = {"id": 123, "other_param": "value"}
+
+        # Mock DB to return the tool
+        mock_scalar = Mock()
+        mock_scalar.scalar_one_or_none.return_value = mock_tool
+        test_db.execute = Mock(return_value=mock_scalar)
+
+        with pytest.raises(ToolInvocationError) as exc_info:
+            await tool_service.invoke_tool(test_db, "test_tool", payload)
+
+            assert "Required URL parameter 'type' not found in arguments" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_invoke_tool_mcp(self, tool_service, mock_tool, test_db):
@@ -1189,6 +1244,104 @@ class TestToolService:
         # mock_tool.request_type = "StreamableHTTP"
         # with patch("mcpgateway.services.tool_service.streamablehttp_client", mock_streamable_client):
         #     ...
+
+    @pytest.mark.asyncio
+    async def test_invoke_tool_invalid_tool_type(self, tool_service, mock_tool, test_db):
+        """Test invoking an invalid tool type."""
+        # Configure tool as REST
+        mock_tool.integration_type = "ABC"
+        mock_tool.request_type = "POST"
+        mock_tool.jsonpath_filter = ""
+        mock_tool.auth_value = None  # No auth
+        mock_tool.url = "http://example.com/"
+        
+        payload = {"param": "value"}
+
+        # Mock DB to return the tool
+        mock_scalar = Mock()
+        mock_scalar.scalar_one_or_none.return_value = mock_tool
+        test_db.execute = Mock(return_value=mock_scalar)
+
+        response = await tool_service.invoke_tool(test_db, "test_tool", payload)
+
+        assert response.content[0].text == "Invalid tool type"
+
+    @pytest.mark.asyncio
+    async def test_invoke_tool_mcp_tool_basic_auth(self, tool_service, mock_tool, mock_gateway, test_db):
+        """Test invoking an invalid tool type."""
+        # Basic auth_value
+        # Create auth_value with the following values
+        # user = "test_user"
+        # password = "test_password"
+        basic_auth_value = "FpZyxAu5PVpT0FN-gJ0JUmdovCMS0emkwW1Vb8HvkhjiBZhj1gDgDRF1wcWNrjTJSLtkz1rLzKibXrhk4GbxXnV6LV4lSw_JDYZ2sPNRy68j_UKOJnf_"
+
+        # Configure tool as REST
+        mock_tool.integration_type = "MCP"
+        mock_tool.request_type = "SSE"
+        mock_tool.jsonpath_filter = ""
+        mock_tool.is_active = True
+        mock_tool.auth_type = "basic"
+        mock_tool.auth_value = basic_auth_value
+        mock_tool.url = "http://example.com/sse"
+        
+        payload = {"param": "value"}
+
+        # Mock DB to return the tool
+        mock_scalar_1 = Mock()
+        mock_scalar_1.scalar_one_or_none.return_value = mock_tool
+
+        mock_scalar_2 = Mock()
+        mock_gateway.auth_type = "basic"
+        mock_gateway.auth_value = basic_auth_value
+        mock_gateway.is_active = True
+        mock_gateway.id = mock_tool.gateway_id
+        mock_scalar_2.scalar_one_or_none.return_value = mock_gateway
+
+        test_db.execute = Mock(side_effect=[mock_scalar_1, mock_scalar_1, mock_scalar_2])
+
+        expected_result = ToolResult(
+            content=[TextContent(type="text", text="MCP response")]
+        )
+
+        session_mock = AsyncMock()
+        session_mock.initialize = AsyncMock()
+        session_mock.call_tool = AsyncMock(return_value=expected_result)
+
+        client_session_cm = AsyncMock()
+        client_session_cm.__aenter__.return_value = session_mock
+        client_session_cm.__aexit__.return_value = AsyncMock()
+
+
+        # @asynccontextmanager
+        # async def mock_sse_client(*_args, **_kwargs):
+        #     yield ("read", "write")
+
+        sse_ctx = AsyncMock()
+        sse_ctx.__aenter__.return_value = ("read", "write")
+
+
+        with patch(
+            "mcpgateway.services.tool_service.sse_client", return_value=sse_ctx
+        ) as sse_client_mock, patch(
+            "mcpgateway.services.tool_service.ClientSession", return_value=client_session_cm
+        ), patch(
+            "mcpgateway.services.tool_service.extract_using_jq", side_effect=lambda data, _filt: data
+        ):
+            # ------------------------------------------------------------------
+            # 4.  Act
+            # ------------------------------------------------------------------
+            result = await tool_service.invoke_tool(test_db, "test_tool", {"param": "value"})
+
+
+        session_mock.initialize.assert_awaited_once()
+        session_mock.call_tool.assert_awaited_once_with("test_tool", {"param": "value"})
+
+        sse_ctx.__aenter__.assert_awaited_once()
+        
+        sse_client_mock.assert_called_once_with(
+            url=mock_gateway.url,
+            headers={'Authorization': 'Basic dGVzdF91c2VyOnRlc3RfcGFzc3dvcmQ='},
+        )
 
     @pytest.mark.asyncio
     async def test_invoke_tool_error(self, tool_service, mock_tool, test_db):
