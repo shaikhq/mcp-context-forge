@@ -953,7 +953,78 @@ class TestToolService:
         assert "Tool 'test_tool' exists but is inactive" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_invoke_tool_rest(self, tool_service, mock_tool, test_db):
+    async def test_invoke_tool_rest_get(self, tool_service, mock_tool, test_db):
+        # ----------------  DB  -----------------
+        mock_tool.integration_type = "REST"
+        mock_tool.request_type     = "GET"
+        mock_tool.jsonpath_filter  = ""
+        mock_tool.auth_value       = None
+
+        mock_scalar = Mock()
+        mock_scalar.scalar_one_or_none.return_value = mock_tool
+        test_db.execute = Mock(return_value=mock_scalar)
+
+        # --------------- HTTP ------------------
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = AsyncMock()
+        mock_response.status_code      = 200
+        # <-- make json() *synchronous*
+        mock_response.json = Mock(return_value={"result": "REST tool response"})
+
+        # stub the correct method for a GET
+        tool_service._http_client.get = AsyncMock(return_value=mock_response)
+
+        # ------------- metrics -----------------
+        tool_service._record_tool_metric = AsyncMock()
+
+        # -------------- invoke -----------------
+        result = await tool_service.invoke_tool(test_db, "test_tool", {})
+
+        # ------------- asserts -----------------
+        tool_service._http_client.get.assert_called_once_with(
+            mock_tool.url,
+            params={},                # payload is empty
+            headers=mock_tool.headers
+        )
+        assert result.content[0].text == '{\n  "result": "REST tool response"\n}'
+        tool_service._record_tool_metric.assert_called_once_with(
+            test_db, mock_tool, ANY, True, None
+        )
+
+        # Test 204 status
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = AsyncMock()
+        mock_response.status_code      = 204
+        mock_response.json = Mock(return_value=ToolResult(content=[TextContent(type="text", text="Request completed successfully (No Content)")]))
+
+        tool_service._http_client.get = AsyncMock(return_value=mock_response)
+
+        # ------------- metrics -----------------
+        tool_service._record_tool_metric = AsyncMock()
+
+        # -------------- invoke -----------------
+        result = await tool_service.invoke_tool(test_db, "test_tool", {})
+
+        assert result.content[0].text == "Request completed successfully (No Content)"
+
+        # Test 205 status
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = AsyncMock()
+        mock_response.status_code      = 205
+        mock_response.json = Mock(return_value=ToolResult(content=[TextContent(type="text", text="Tool error encountered")]))
+
+        tool_service._http_client.get = AsyncMock(return_value=mock_response)
+
+        # ------------- metrics -----------------
+        tool_service._record_tool_metric = AsyncMock()
+
+        # -------------- invoke -----------------
+        result = await tool_service.invoke_tool(test_db, "test_tool", {})
+
+        assert result.content[0].text == "Tool error encountered"
+    
+    @pytest.mark.asyncio
+    async def test_invoke_tool_rest_post(self, tool_service, mock_tool, test_db):
         """Test invoking a REST tool."""
         # Configure tool as REST
         mock_tool.integration_type = "REST"
