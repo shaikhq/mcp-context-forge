@@ -73,7 +73,7 @@ class GatewayNameConflictError(GatewayError):
 
         Args:
             name: The conflicting gateway name
-            enabled: Whether the existing gateway is enabled 
+            enabled: Whether the existing gateway is enabled
             gateway_id: ID of the existing gateway if available
         """
         self.name = name
@@ -462,7 +462,7 @@ class GatewayService:
                 db.refresh(gateway)
 
                 tools = db.query(DbTool).filter(DbTool.gateway_id == gateway_id).all()
- 
+
                 if only_update_reachable:
                     for tool in tools:
                         await self.tool_service.toggle_tool_status(db, tool.id, tool.enabled, reachable)

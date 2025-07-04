@@ -8,8 +8,11 @@ Create Date: 2025‑07‑02 17:12:40.678256
 # Standard
 from typing import Sequence, Union
 
+# First-Party
 # Alembic / SQLAlchemy
 from alembic import op
+
+# Third-Party
 import sqlalchemy as sa
 
 # Revision identifiers.

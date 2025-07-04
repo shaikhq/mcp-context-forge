@@ -71,7 +71,8 @@ MOCK_TOOL_READ = {
     "auth": {"auth_type": "none"},
     "createdAt": "2023-01-01T00:00:00+00:00",
     "updatedAt": "2023-01-01T00:00:00+00:00",
-    "status": {"enabled": True, "reachable": True},
+    "enabled": True,
+    "reachable": True,
     "gatewayId": "gateway-1",
     "executionCount": 5,
     "metrics": MOCK_METRICS,
@@ -139,10 +140,10 @@ MOCK_GATEWAY_READ = {
     "description": "A test gateway",
     "transport": "SSE",
     "auth_type": "none",
-
     "created_at": "2023-01-01T00:00:00+00:00",
     "updated_at": "2023-01-01T00:00:00+00:00",
-    "status": {"enabled": True, "reachable": True},
+    "enabled": True,
+    "reachable": True,
 }
 
 MOCK_ROOT = {

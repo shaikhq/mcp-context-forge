@@ -323,7 +323,7 @@ class TestAdminToolRoutes:
         result = await admin_toggle_tool(1, mock_request, mock_db, "test-user")
 
         # Assert
-        mock_toggle_status.assert_called_once_with(mock_db, 1, True)
+        mock_toggle_status.assert_called_once_with(mock_db, 1, True, reachable=True)
         assert isinstance(result, RedirectResponse)
         assert result.status_code == 303
         assert "/admin#tools" in result.headers["location"]

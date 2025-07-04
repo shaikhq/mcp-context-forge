@@ -344,7 +344,7 @@ class ToolService:
             tool_id: Tool ID to toggle.
             activate: True to activate, False to deactivate.
             reachable: True if the tool is reachable, False otherwise.
-  
+
         Returns:
             Updated tool information.
 
@@ -356,7 +356,7 @@ class ToolService:
             tool = db.get(DbTool, tool_id)
             if not tool:
                 raise ToolNotFoundError(f"Tool not found: {tool_id}")
-            
+
             is_activated = is_reachable = False
             if tool.enabled != activate:
                 tool.enabled = activate
