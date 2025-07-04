@@ -1,4 +1,4 @@
-"""Add structured status column and migrate data (is_active ➜ status).
+"""Add enabled and reachable columns in tools and gateways tables and migrate data (is_active ➜ enabled,reachable).
 
 Revision ID: e75490e949b1
 Revises: e4fc04d1a442

@@ -403,7 +403,7 @@ class GatewayService:
             gateway_id: Gateway ID to toggle
             activate: True to activate, False to deactivate
             reachable: True if the gateway is reachable, False otherwise
-            only_update_reachable: If True, only updates reachable status without changing enabled status. Applicable for changing tool status. If the tool is manually deactivated, it will not be reactivated if reachabale.
+            only_update_reachable: If True, only updates reachable status without changing enabled status. Applicable for changing tool status. If the tool is manually deactivated, it will not be reactivated if reachable.
 
         Returns:
             Updated gateway information
@@ -462,9 +462,10 @@ class GatewayService:
                 db.refresh(gateway)
 
                 tools = db.query(DbTool).filter(DbTool.gateway_id == gateway_id).all()
+ 
                 if only_update_reachable:
                     for tool in tools:
-                        await self.tool_service.toggle_tool_reachable_status(db, tool.id, reachable)
+                        await self.tool_service.toggle_tool_status(db, tool.id, tool.enabled, reachable)
                 else:
                     for tool in tools:
                         await self.tool_service.toggle_tool_status(db, tool.id, activate, reachable)

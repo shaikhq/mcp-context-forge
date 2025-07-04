@@ -336,13 +336,14 @@ class ToolService:
             db.rollback()
             raise ToolError(f"Failed to delete tool: {str(e)}")
 
-    async def toggle_tool_status(self, db: Session, tool_id: str, activate: bool) -> ToolRead:
+    async def toggle_tool_status(self, db: Session, tool_id: str, activate: bool, reachable: bool) -> ToolRead:
         """Toggle tool active status.
 
         Args:
             db: Database session.
             tool_id: Tool ID to toggle.
             activate: True to activate, False to deactivate.
+            reachable: True if the tool is reachable, False otherwise.
   
         Returns:
             Updated tool information.
@@ -355,9 +356,17 @@ class ToolService:
             tool = db.get(DbTool, tool_id)
             if not tool:
                 raise ToolNotFoundError(f"Tool not found: {tool_id}")
-                
+            
+            is_activated = is_reachable = False
             if tool.enabled != activate:
                 tool.enabled = activate
+                is_activated = True
+
+            if tool.reachable != reachable:
+                tool.reachable = reachable
+                is_reachable = True
+
+            if is_activated or is_reachable:
                 tool.updated_at = datetime.now(timezone.utc)
 
                 db.commit()
@@ -366,39 +375,7 @@ class ToolService:
                     await self._notify_tool_activated(tool)
                 else:
                     await self._notify_tool_deactivated(tool)
-                logger.info(f"Tool: {tool.name} is {'enabled' if activate else 'disabled'}")
-
-            return self._convert_tool_to_read(tool)
-        except Exception as e:
-            db.rollback()
-            raise ToolError(f"Failed to toggle tool status: {str(e)}")
-
-    async def toggle_tool_reachable_status(self, db: Session, tool_id: str, reachable: bool = True) -> ToolRead:
-        """Toggle tool reachable status without changing the enabled status.
-
-        Args:
-            db: Database session.
-            tool_id: Tool ID to toggle.
-            reachable: True if the corresponding gateway for the tool is reachable, False otherwise.
-
-        Returns:
-            Updated tool information.
-
-        Raises:
-            ToolNotFoundError: If tool not found.
-            ToolError: For other errors.
-        """
-        try:
-            tool = db.get(DbTool, tool_id)
-            if not tool:
-                raise ToolNotFoundError(f"Tool not found: {tool_id}")
-
-            if tool.reachable != reachable:
-                tool.reachable = reachable
-                tool.updated_at = datetime.utcnow()
-                db.commit()
-                db.refresh(tool)
-                logger.info(f"Tool status: {tool.name} - {'accessible' if reachable else 'inaccessible'}")
+                logger.info(f"Tool: {tool.name} is {'enabled' if activate else 'disabled'}{' and accessible' if reachable else 'but inaccessible'}")
 
             return self._convert_tool_to_read(tool)
         except Exception as e:
