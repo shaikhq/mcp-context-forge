@@ -551,8 +551,8 @@
                     {% endif %}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    {% set enabled = tool.status.enabled %}
-                    {% set reachable = tool.status.reachable %}
+                    {% set enabled = tool.enabled %}
+                    {% set reachable = tool.reachable %}
 
                     {% if enabled and reachable %}
                       {% set bg_class = "bg-green-100 text-green-800" %}
@@ -604,7 +604,7 @@
                     >
                       Test
                     </button>
-                    {% if tool.status.enabled %}
+                    {% if tool.enabled %}
                     <form
                       method="POST"
                       action="{{ root_path }}/admin/tools/{{ tool.id }}/toggle"
@@ -1384,8 +1384,8 @@
                     {{ gateway.url }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    {% set enabled = gateway.status.enabled %}
-                    {% set reachable = gateway.status.reachable %}
+                    {% set enabled = gateway.enabled %}
+                    {% set reachable = gateway.reachable %}
 
                     {% if enabled and reachable %}
                       {% set bg_class = "bg-green-100 text-green-800" %}
@@ -1436,7 +1436,7 @@
                     gateway.lastSeen else 'Never' }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {% if gateway.status.enabled %}
+                    {% if gateway.enabled %}
                     <form
                       method="POST"
                       action="{{ root_path }}/admin/gateways/{{ gateway.id }}/toggle"
